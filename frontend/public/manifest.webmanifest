@@ -1,0 +1,42 @@
+{
+  "name": "Pennywise",
+  "short_name": "Pennywise",
+  "description": "Family expense tracking with dashboard and budgets.",
+  "id": "/",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#f7f3ec",
+  "theme_color": "#8B5CF6",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View monthly spending overview"
+    },
+    {
+      "name": "Add Expense",
+      "short_name": "Add",
+      "url": "/add",
+      "description": "Record a new expense"
+    },
+    {
+      "name": "Budgets",
+      "short_name": "Budgets",
+      "url": "/budgets",
+      "description": "Manage category budgets"
+    }
+  ]
+}

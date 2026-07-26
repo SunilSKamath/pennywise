@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS expense_tags;
+DROP TABLE IF EXISTS tags;

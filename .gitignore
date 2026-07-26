@@ -1,0 +1,27 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# Go build and module caches
+backend/.cache/
+backend/.env
+backend/pennywise
+
+# Deployment staging, SSH state, and local binaries
+.deploy/
+pennywise
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# README image captures are generated locally
+docs/screenshots/*.png
+!docs/screenshots/.gitkeep

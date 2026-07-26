@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #f7f3ec;
+  color: #1f2522;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark {
+  color-scheme: dark;
+  background: #151816;
+  color: #f5f0e8;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  overscroll-behavior-y: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+  }
+
+  input,
+  textarea {
+    user-select: text;
+  }
+}
+
+@layer components {
+  .page-title {
+    @apply text-3xl font-extrabold tracking-normal text-ink dark:text-stone-50;
+  }
+
+  .panel {
+    @apply rounded-2xl border border-stone-200/90 bg-white/[0.86] shadow-soft dark:border-stone-700 dark:bg-stone-900/90;
+  }
+
+  .control {
+    @apply h-12 rounded-xl border border-stone-200 bg-white px-4 text-base text-ink outline-none transition focus:border-fern focus:ring-4 focus:ring-fern/15 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-50;
+  }
+}
