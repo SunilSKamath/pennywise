@@ -18,15 +18,13 @@ func EnsureDefaults(ctx context.Context, db *sql.DB) error {
 func ensureDevUser(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `
 		INSERT INTO users (id, household_id, google_id, email, name, picture_url, role, status)
-		VALUES (1, 1, 'dev-user', 'dev@example.local', 'Dev User', '', 'admin', 'active')
+		VALUES (1, 1, 'dev-user', 'dev@example.local', 'Dev User', '', 'user', 'pending')
 		ON DUPLICATE KEY UPDATE
 			household_id = VALUES(household_id),
 			google_id = VALUES(google_id),
 			email = VALUES(email),
 			name = VALUES(name),
-			picture_url = VALUES(picture_url),
-			role = 'admin',
-			status = 'active'
+			picture_url = VALUES(picture_url)
 	`)
 	return err
 }

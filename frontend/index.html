@@ -15,7 +15,69 @@
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    </noscript>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f7f3ec;
+      }
+    </style>
+    <script>
+      (function () {
+        var storageKey = "pennywise-resume-reload";
+        function rootEmpty() {
+          var root = document.getElementById("root");
+          return !root || root.childElementCount === 0;
+        }
+        function reloadOnce() {
+          if (!rootEmpty()) {
+            return;
+          }
+          try {
+            if (sessionStorage.getItem(storageKey) === "1") {
+              return;
+            }
+            sessionStorage.setItem(storageKey, "1");
+          } catch (error) {
+            return;
+          }
+          window.location.reload();
+        }
+        var leftAt = 0;
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden") {
+            leftAt = Date.now();
+            return;
+          }
+          if (leftAt > 0) {
+            reloadOnce();
+          }
+        });
+        window.addEventListener("pageshow", function (event) {
+          if (event.persisted) {
+            reloadOnce();
+          }
+        });
+        window.addEventListener("load", function () {
+          window.setTimeout(function () {
+            try {
+              sessionStorage.removeItem(storageKey);
+            } catch (error) {
+              /* sessionStorage can be unavailable in a private webview */
+            }
+          }, 2000);
+        });
+      })();
+    </script>
     <title>Pennywise</title>
   </head>
   <body>

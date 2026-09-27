@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 	userdomain "github.com/creation/pennywise/backend/internal/domain/user"
 	"github.com/creation/pennywise/backend/internal/infrastructure/oauth"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	static "github.com/gofiber/fiber/v3/middleware/static"
 	"go.uber.org/zap"
 )
@@ -38,9 +40,9 @@ type Services struct {
 	Budgets        *applicationbudget.Service
 	GoogleOAuth    *oauth.Google
 	Users          userdomain.Repository
-	DevAuthUserID  uint64
 	JWTSecret      string
 	CookieSecure   bool
+	CookieSameSite string
 	FrontendURL    string
 	PublicDir      string
 	Logger         *zap.Logger
@@ -53,18 +55,24 @@ func NewRouter(services Services) *fiber.App {
 	})
 
 	app.Use(requestLogger(services.Logger))
+	if origin := frontendOrigin(services.FrontendURL); origin != "" {
+		app.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{origin},
+			AllowHeaders:     []string{"Content-Type", "Authorization", "X-Household-ID"},
+			AllowCredentials: true,
+		}))
+	}
 	app.Get("/healthz", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	app.Get("/auth/google/login", googleLogin(services.GoogleOAuth, services.CookieSecure))
-	app.Get("/auth/google/callback", googleCallback(services.GoogleOAuth, services.Users, services.JWTSecret, services.CookieSecure, services.FrontendURL))
-	app.Post("/auth/logout", logout(services.CookieSecure))
+	app.Get("/auth/google/login", googleLogin(services.GoogleOAuth, services.CookieSecure, services.CookieSameSite))
+	app.Get("/auth/google/callback", googleCallback(services.GoogleOAuth, services.Users, services.JWTSecret, services.CookieSecure, services.CookieSameSite, services.FrontendURL))
+	app.Post("/auth/logout", logout(services.CookieSecure, services.CookieSameSite))
 
-	session := authMiddleware(services.Users, services.DevAuthUserID, services.JWTSecret)
+	session := authMiddleware(services.Users, services.JWTSecret)
 	api := app.Group("/api/v1", session)
 	api.Get("/me", me())
-	app.Get("/me", session, me())
 
 	protected := api.Group("", activeUser())
 	protected.Get("/categories", listCategories(services.Categories))
@@ -125,9 +133,11 @@ func registerFrontend(app *fiber.App, publicDir string) {
 		MaxAge:     3600,
 		Compress:   true,
 		NotFoundHandler: func(c fiber.Ctx) error {
-			// Only browser navigation requests are SPA routes. Returning index.html
-			// for a missing .js or .css file makes Safari fail to load the app.
-			if filepath.Ext(c.Path()) != "" || !strings.Contains(c.Get("Accept"), "text/html") {
+			// Extension-less GETs are client routes such as /dashboard. iOS can
+			// reload an installed app without sending Accept: text/html, and a
+			// JSON 404 there is a blank screen. Files with an extension stay 404s
+			// so a missing script is not replaced with index.html.
+			if c.Method() != fiber.MethodGet || filepath.Ext(c.Path()) != "" {
 				return fiber.NewError(fiber.StatusNotFound, "asset not found")
 			}
 			return serveFrontendIndex(indexPath)(c)
@@ -140,6 +150,9 @@ func serveFrontendIndex(indexPath string) fiber.Handler {
 		if _, err := os.Stat(indexPath); err != nil {
 			return fiber.NewError(fiber.StatusNotFound, "frontend not found")
 		}
+		// The static file middleware leaves a 404 status when the client route
+		// does not exist as a file. Serving index.html has to replace that.
+		c.Status(fiber.StatusOK)
 		c.Set("Cache-Control", "no-cache")
 		return c.SendFile(indexPath)
 	}
@@ -177,7 +190,7 @@ func requestLogger(logger *zap.Logger) fiber.Handler {
 	}
 }
 
-func authMiddleware(users userdomain.Repository, defaultUserID uint64, jwtSecret string) fiber.Handler {
+func authMiddleware(users userdomain.Repository, jwtSecret string) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userID := uint64(0)
 		if token := bearerToken(c); token != "" {
@@ -195,16 +208,6 @@ func authMiddleware(users userdomain.Repository, defaultUserID uint64, jwtSecret
 				}
 				userID = parsed
 			}
-		}
-		if header := c.Get("X-User-ID"); header != "" {
-			parsed, err := strconv.ParseUint(header, 10, 64)
-			if err != nil || parsed == 0 {
-				return fiber.NewError(fiber.StatusUnauthorized, "invalid X-User-ID")
-			}
-			userID = parsed
-		}
-		if userID == 0 {
-			userID = defaultUserID
 		}
 		if userID == 0 {
 			return fiber.NewError(fiber.StatusUnauthorized, "authentication required")
@@ -246,29 +249,22 @@ func adminOnly() fiber.Handler {
 	}
 }
 
-func googleLogin(googleOAuth *oauth.Google, cookieSecure bool) fiber.Handler {
+func googleLogin(googleOAuth *oauth.Google, cookieSecure bool, cookieSameSite string) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		state, err := randomState()
 		if err != nil {
 			return err
 		}
-		url, err := googleOAuth.LoginURL(state)
+		loginURL, err := googleOAuth.LoginURL(state)
 		if err != nil {
 			return fiber.NewError(fiber.StatusNotImplemented, err.Error())
 		}
-		c.Cookie(&fiber.Cookie{
-			Name:     "oauth_state",
-			Value:    state,
-			HTTPOnly: true,
-			SameSite: "Lax",
-			Secure:   cookieSecure,
-			MaxAge:   600,
-		})
-		return c.Redirect().To(url)
+		c.Cookie(httpCookie("oauth_state", state, cookieSameSite, cookieSecure, 600))
+		return c.Redirect().To(loginURL)
 	}
 }
 
-func googleCallback(googleOAuth *oauth.Google, users userdomain.Repository, jwtSecret string, cookieSecure bool, frontendURL string) fiber.Handler {
+func googleCallback(googleOAuth *oauth.Google, users userdomain.Repository, jwtSecret string, cookieSecure bool, cookieSameSite string, frontendURL string) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		state := c.Query("state")
 		code := c.Query("code")
@@ -289,14 +285,7 @@ func googleCallback(googleOAuth *oauth.Google, users userdomain.Repository, jwtS
 		if err != nil {
 			return err
 		}
-		c.Cookie(&fiber.Cookie{
-			Name:     "pennywise_session",
-			Value:    token,
-			HTTPOnly: true,
-			SameSite: "Lax",
-			Secure:   cookieSecure,
-			MaxAge:   30 * 24 * 60 * 60,
-		})
+		c.Cookie(httpCookie("pennywise_session", token, cookieSameSite, cookieSecure, 30*24*60*60))
 		redirectURL := "/"
 		if strings.TrimSpace(frontendURL) != "" {
 			redirectURL = strings.TrimRight(frontendURL, "/") + "/"
@@ -305,18 +294,41 @@ func googleCallback(googleOAuth *oauth.Google, users userdomain.Repository, jwtS
 	}
 }
 
-func logout(cookieSecure bool) fiber.Handler {
+func logout(cookieSecure bool, cookieSameSite string) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		c.Cookie(&fiber.Cookie{
-			Name:     "pennywise_session",
-			Value:    "",
-			HTTPOnly: true,
-			SameSite: "Lax",
-			Secure:   cookieSecure,
-			MaxAge:   -1,
-		})
+		c.Cookie(httpCookie("pennywise_session", "", cookieSameSite, cookieSecure, -1))
 		return c.SendStatus(fiber.StatusNoContent)
 	}
+}
+
+func httpCookie(name string, value string, sameSite string, secure bool, maxAge int) *fiber.Cookie {
+	if strings.TrimSpace(sameSite) == "" {
+		sameSite = "Lax"
+	}
+	return &fiber.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		HTTPOnly: true,
+		SameSite: sameSite,
+		Secure:   secure,
+		MaxAge:   maxAge,
+	}
+}
+
+func frontendOrigin(frontendURL string) string {
+	frontendURL = strings.TrimSpace(frontendURL)
+	if frontendURL == "" {
+		return ""
+	}
+	parsed, err := url.Parse(frontendURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ""
+	}
+	return parsed.Scheme + "://" + parsed.Host
 }
 
 func me() fiber.Handler {

@@ -1,3 +1,4 @@
+// Client for the Pennywise HTTP API. The contract is documented in docs/api.md.
 import { usePreferences } from "./store";
 
 export type Category = {

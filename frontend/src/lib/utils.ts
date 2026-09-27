@@ -42,9 +42,14 @@ export function monthBounds(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   const start = new Date(year, monthNumber - 1, 1);
   const end = new Date(year, monthNumber, 0);
+  const format = (date: Date) => {
+    const monthValue = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${date.getFullYear()}-${monthValue}-${day}`;
+  };
   return {
-    from: inputDate(start),
-    to: inputDate(end)
+    from: format(start),
+    to: format(end)
   };
 }
 

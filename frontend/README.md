@@ -11,7 +11,10 @@ npm run dev
 
 The Vite dev server proxies `/api`, `/auth`, and `/healthz` to `http://localhost:8080`.
 
-Set `VITE_API_BASE_URL` when serving the frontend separately from the backend proxy.
+Set `VITE_API_BASE_URL` to the API origin when serving the frontend separately
+from that proxy. The request and response contract is
+[docs/api.md](../docs/api.md). On the API, set `FRONTEND_URL` to this app's
+origin so credentialed browser calls are allowed.
 
 ## PWA hosting
 
@@ -30,5 +33,9 @@ FRONTEND_URL=https://app.example.com
 GOOGLE_REDIRECT_URL=https://api.example.com/auth/google/callback
 COOKIE_SECURE=true
 ```
+
+`app.example.com` and `api.example.com` are the same site, so the default
+`COOKIE_SAMESITE=lax` still sends the session cookie. Set `COOKIE_SAMESITE=none`
+only when the frontend origin is a different site from the API.
 
 Register the same `GOOGLE_REDIRECT_URL` in Google Cloud Console.

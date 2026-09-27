@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, Plus, Users, WalletCards } from "lucide-react";
+import { LogOut, Plus, ShieldCheck, Users, WalletCards } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "../components/Button";
 import { api, type PaymentSource, type User } from "../lib/api";
 import { usePreferences } from "../lib/store";
@@ -79,6 +80,15 @@ export function Settings({ user }: { user: User }) {
             <p className="text-xs text-stone-500 dark:text-stone-400">ID {user.household_id} / {user.role} / {user.status}</p>
           </div>
         </div>
+        {user.role === "admin" && (
+          <Link to="/admin" className="mt-3 flex items-center gap-3 rounded-xl bg-mist p-3 dark:bg-stone-800">
+            <ShieldCheck className="h-5 w-5 text-fern" />
+            <div>
+              <p className="text-sm font-bold">Household access</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Approve people and manage households</p>
+            </div>
+          </Link>
+        )}
         {logout.error && <p className="mt-3 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{logout.error.message}</p>}
       </section>
 

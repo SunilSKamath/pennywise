@@ -8,10 +8,14 @@ import { ExpenseForm } from "./ExpenseForm";
 export function EditExpense() {
   const { id } = useParams();
   const expenseID = Number(id);
-  const expenses = useQuery({ queryKey: ["expenses"], queryFn: () => api.expenses() });
-  const expense = expenses.data?.find((item) => item.id === expenseID);
+  const expense = useQuery({
+    queryKey: ["expenses", expenseID],
+    queryFn: () => api.expense(expenseID),
+    enabled: Number.isFinite(expenseID) && expenseID > 0,
+    retry: false
+  });
 
-  if (expenses.isLoading) {
+  if (expense.isLoading) {
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <Skeleton className="h-10 w-48" />
@@ -20,9 +24,9 @@ export function EditExpense() {
     );
   }
 
-  if (!expense) {
+  if (expense.isError || !expense.data) {
     return <EmptyState title="Expense Not Found" action={false} />;
   }
 
-  return <ExpenseForm expense={expense} />;
+  return <ExpenseForm expense={expense.data} />;
 }

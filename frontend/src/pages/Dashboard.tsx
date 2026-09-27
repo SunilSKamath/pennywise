@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, CirclePlus, Receipt, Target, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Receipt, Target, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
@@ -96,7 +96,7 @@ export function Dashboard() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-fern">Overview</p>
-          <h1 className="page-title">Dashboard</h1>
+          <h1 className="page-title">Overview</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-xl border border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900">
@@ -122,9 +122,6 @@ export function Dashboard() {
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <Link className="grid h-11 w-11 place-items-center rounded-xl bg-fern text-white shadow-soft" to="/add" aria-label="Add expense">
-            <CirclePlus className="h-5 w-5" />
-          </Link>
         </div>
       </header>
 
@@ -289,7 +286,7 @@ export function Dashboard() {
         ) : (
           <div className="panel overflow-hidden px-4">
             {recentExpenses.map((expense) => (
-              <ExpenseRow key={expense.id} expense={expense} categories={categories.data ?? []} paymentSources={paymentSources.data ?? []} />
+              <ExpenseRow key={expense.id} expense={expense} categories={categories.data ?? []} paymentSources={paymentSources.data ?? []} editable />
             ))}
           </div>
         )}

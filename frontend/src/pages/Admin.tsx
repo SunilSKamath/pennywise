@@ -12,8 +12,8 @@ export function Admin({ currentUser }: { currentUser: User }) {
   const users = useQuery({ queryKey: ["admin-users"], queryFn: api.users });
   const households = useQuery({ queryKey: ["admin-households"], queryFn: api.households });
   const updateAccess = useMutation({
-    mutationFn: ({ id, role, status }: { id: number; role: User["role"]; status: User["status"] }) =>
-      api.updateUserAccess(id, { role, status }),
+    mutationFn: ({ id, status }: { id: number; status: User["status"] }) =>
+      api.updateUserAccess(id, { role: "user", status }),
     onSuccess: async (updated) => {
       await queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       if (updated.id === currentUser.id) {
@@ -94,7 +94,7 @@ export function Admin({ currentUser }: { currentUser: User }) {
           </div>
           <div>
             <h2 className="text-lg font-extrabold">Users</h2>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Approve household access and assign roles.</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Approve household access. Admin access stays with the configured account.</p>
           </div>
         </div>
 
@@ -112,7 +112,7 @@ export function Admin({ currentUser }: { currentUser: User }) {
                 currentUserID={currentUser.id}
                 isSaving={updateAccess.isPending}
                 households={households.data ?? []}
-                onChange={(role, status) => updateAccess.mutate({ id: user.id, role, status })}
+                onChange={(status) => updateAccess.mutate({ id: user.id, status })}
                 onHouseholdsChange={(householdIDs) => updateHouseholds.mutate({ id: user.id, householdIDs })}
               />
             ))}
@@ -132,22 +132,23 @@ function UserAccessRow({
   currentUserID,
   isSaving,
   households,
-  onChange
-  ,onHouseholdsChange
+  onChange,
+  onHouseholdsChange
 }: {
   user: User;
   currentUserID: number;
   isSaving: boolean;
   households: Household[];
-  onChange: (role: User["role"], status: User["status"]) => void;
+  onChange: (status: User["status"]) => void;
   onHouseholdsChange: (householdIDs: number[]) => void;
 }) {
   const initials = (user.name || user.email || "U").slice(0, 1).toUpperCase();
   const isSelf = user.id === currentUserID;
+  const isAdmin = user.role === "admin";
 
   return (
     <div className="grid gap-3 rounded-xl bg-mist p-3 dark:bg-stone-800">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_140px_140px_120px] lg:items-center">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px_140px_120px] lg:items-center">
       <div className="flex min-w-0 items-center gap-3">
         {user.picture_url ? (
           <img className="h-11 w-11 rounded-2xl object-cover" src={user.picture_url} alt="" />
@@ -160,28 +161,33 @@ function UserAccessRow({
         </div>
       </div>
 
-      <select className="control min-w-0" value={user.role} onChange={(event) => onChange(event.target.value as User["role"], user.status)} disabled={isSaving}>
-        <option value="user">User</option>
-        <option value="admin">Admin</option>
-      </select>
+      <span className="rounded-xl bg-white px-3 py-2 text-center text-sm font-bold text-ink dark:bg-stone-950 dark:text-stone-50">
+        {isAdmin ? "Admin" : "User"}
+      </span>
 
-      <select
-        className="control min-w-0"
-        value={user.status}
-        onChange={(event) => onChange(user.role, event.target.value as User["status"])}
-        disabled={isSaving || isSelf}
-      >
-        <option value="pending">Pending</option>
-        <option value="active">Active</option>
-      </select>
+      {isAdmin ? (
+        <span className="rounded-xl bg-white px-3 py-2 text-center text-sm font-bold text-fern dark:bg-stone-950">Active</span>
+      ) : (
+        <select
+          className="control min-w-0"
+          value={user.status}
+          onChange={(event) => onChange(event.target.value as User["status"])}
+          disabled={isSaving}
+        >
+          <option value="pending">Pending</option>
+          <option value="active">Active</option>
+        </select>
+      )}
 
-      {user.status === "pending" ? (
-        <Button disabled={isSaving} onClick={() => onChange(user.role, "active")}>
+      {!isAdmin && user.status === "pending" ? (
+        <Button disabled={isSaving} onClick={() => onChange("active")}>
           <UserCheck className="h-5 w-5" />
           Approve
         </Button>
-      ) : (
+      ) : !isAdmin ? (
         <span className="rounded-xl bg-white px-3 py-2 text-center text-sm font-bold text-fern dark:bg-stone-950">Active</span>
+      ) : (
+        <span />
       )}
       </div>
 

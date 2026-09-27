@@ -12,7 +12,6 @@ type Config struct {
 	DatabaseDSN           string
 	HouseholdID           uint64
 	HouseholdBaseCurrency string
-	DevAuthUserID         uint64
 	GoogleClientID        string
 	GoogleClientSecret    string
 	GoogleRedirectURL     string
@@ -21,28 +20,56 @@ type Config struct {
 	AdminEmail            string
 	JWTSecret             string
 	CookieSecure          bool
+	CookieSameSite        string
 	ExchangeRateAPIURL    string
 }
 
 func Load() Config {
 	loadEnvFile(".env")
 
+	appEnv := env("APP_ENV", "development")
+	frontendURL := env("FRONTEND_URL", "")
+	cookieSecure := envBool("COOKIE_SECURE", false)
+	if appEnv == "production" || strings.HasPrefix(strings.ToLower(frontendURL), "https://") {
+		cookieSecure = true
+	}
+	cookieSameSite := normalizeSameSite(env("COOKIE_SAMESITE", "lax"))
+	if cookieSameSite == "None" {
+		cookieSecure = true
+	}
+
 	return Config{
-		AppEnv:                env("APP_ENV", "development"),
+		AppEnv:                appEnv,
 		HTTPAddr:              env("HTTP_ADDR", ":8080"),
 		DatabaseDSN:           env("DATABASE_DSN", "pennywise:pennywise@tcp(127.0.0.1:3306)/pennywise?parseTime=true&multiStatements=true"),
 		HouseholdID:           envUint("HOUSEHOLD_ID", 1),
 		HouseholdBaseCurrency: strings.ToUpper(env("HOUSEHOLD_BASE_CURRENCY", "INR")),
-		DevAuthUserID:         envUint("DEV_AUTH_USER_ID", 0),
 		GoogleClientID:        env("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret:    env("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:     env("GOOGLE_REDIRECT_URL", "http://localhost:8080/auth/google/callback"),
-		FrontendURL:           env("FRONTEND_URL", ""),
+		FrontendURL:           frontendURL,
 		PublicDir:             env("PUBLIC_DIR", "public"),
 		AdminEmail:            strings.ToLower(strings.TrimSpace(env("ADMIN_EMAIL", env("admin_email", "")))),
-		JWTSecret:             env("JWT_SECRET", "change-me"),
-		CookieSecure:          envBool("COOKIE_SECURE", false),
+		JWTSecret:             env("JWT_SECRET", ""),
+		CookieSecure:          cookieSecure,
+		CookieSameSite:        cookieSameSite,
 		ExchangeRateAPIURL:    env("EXCHANGE_RATE_API_URL", "https://open.er-api.com/v6/latest"),
+	}
+}
+
+func (c Config) ValidJWTSecret() bool {
+	secret := strings.TrimSpace(c.JWTSecret)
+	return secret != "" && secret != "change-me"
+}
+
+func normalizeSameSite(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "strict":
+		return "Strict"
+	case "none":
+		return "None"
+	default:
+		return "Lax"
 	}
 }
 

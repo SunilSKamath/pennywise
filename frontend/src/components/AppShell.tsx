@@ -1,26 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarRange, CirclePlus, Home, LayoutDashboard, List, Menu, PiggyBank, Settings, ShieldCheck, Target, X } from "lucide-react";
+import { CirclePlus, LayoutDashboard, List, Menu, Target, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { InstallPrompt } from "./InstallPrompt";
 import type { User } from "../lib/api";
 import { usePreferences } from "../lib/store";
 import { cn } from "../lib/utils";
 
-const baseNavItems = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+const navItems = [
+  { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/expenses", label: "Expenses", icon: List },
-  { to: "/reports", label: "Reports", icon: CalendarRange },
-  { to: "/month-review", label: "Month review", icon: CalendarRange },
-  { to: "/savings", label: "Savings", icon: PiggyBank },
-  { to: "/add", label: "Add expense", icon: CirclePlus },
-  { to: "/budgets", label: "Budgets", icon: Target },
-  { to: "/settings", label: "Settings", icon: Settings }
+  { to: "/budgets", label: "Budgets", icon: Target }
 ];
-
-const adminNavItem = { to: "/admin", label: "Admin", icon: ShieldCheck };
 
 type AppShellProps = PropsWithChildren<{
   user: User;
@@ -29,7 +21,7 @@ type AppShellProps = PropsWithChildren<{
 export function AppShell({ children, user }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const navItems = user.role === "admin" ? [...baseNavItems, adminNavItem] : baseNavItems;
+  const showAdd = location.pathname !== "/add" && !/^\/expenses\/[^/]+\/edit$/.test(location.pathname);
   const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
   const setSelectedHouseholdID = usePreferences((state) => state.setSelectedHouseholdID);
   const queryClient = useQueryClient();
@@ -61,13 +53,16 @@ export function AppShell({ children, user }: AppShellProps) {
               <p className="text-xs text-stone-500 dark:text-stone-400">Family spending</p>
             </div>
           </div>
-          <button
-            className="grid h-10 w-10 place-items-center rounded-xl text-stone-500 transition hover:bg-stone-100 md:hidden dark:hover:bg-stone-900"
-            aria-label="Close menu"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {showAdd && <AddExpenseButton className="hidden md:grid" onNavigate={() => setSidebarOpen(false)} />}
+            <button
+              className="grid h-10 w-10 place-items-center rounded-xl text-stone-500 transition hover:bg-stone-100 md:hidden dark:hover:bg-stone-900"
+              aria-label="Close menu"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto">
@@ -101,9 +96,13 @@ export function AppShell({ children, user }: AppShellProps) {
           </label>
         )}
 
-        <div className="mt-4 rounded-2xl border border-stone-200 bg-mist p-3 dark:border-stone-800 dark:bg-stone-900">
+        <Link
+          to="/settings"
+          onClick={() => setSidebarOpen(false)}
+          className="mt-4 block rounded-2xl border border-stone-200 bg-mist p-3 dark:border-stone-800 dark:bg-stone-900"
+        >
           <UserBadge user={user} />
-        </div>
+        </Link>
       </aside>
 
       <div className="md:ml-72">
@@ -116,9 +115,10 @@ export function AppShell({ children, user }: AppShellProps) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{navItems.find((item) => item.to === location.pathname)?.label ?? "Pennywise"}</p>
+            <p className="truncate text-sm font-bold">{pageLabel(location.pathname)}</p>
             <p className="truncate text-xs text-stone-500 dark:text-stone-400">{user.name || user.email}</p>
           </div>
+          {showAdd && <AddExpenseButton onNavigate={() => setSidebarOpen(false)} />}
         </header>
 
         <main className="min-h-screen px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8">
@@ -152,6 +152,34 @@ function UserBadge({ user }: { user: User }) {
   );
 }
 
+function pageLabel(pathname: string) {
+  return (
+    navItems.find((item) => item.to === pathname)?.label ??
+    (pathname === "/settings"
+      ? "Settings"
+      : pathname === "/admin"
+        ? "Admin"
+        : pathname === "/add"
+          ? "Add expense"
+          : pathname.endsWith("/edit")
+            ? "Edit expense"
+            : "Pennywise")
+  );
+}
+
+function AddExpenseButton({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
+  return (
+    <Link
+      className={cn("grid h-11 w-11 place-items-center rounded-xl bg-fern text-white shadow-soft", className)}
+      to="/add"
+      aria-label="Add expense"
+      onClick={onNavigate}
+    >
+      <CirclePlus className="h-5 w-5" />
+    </Link>
+  );
+}
+
 function NavItem({
   to,
   label,
@@ -160,7 +188,7 @@ function NavItem({
 }: {
   to: string;
   label: string;
-  icon: typeof Home;
+  icon: typeof LayoutDashboard;
   onNavigate?: () => void;
 }) {
   return (

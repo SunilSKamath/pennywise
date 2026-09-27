@@ -3,7 +3,7 @@
   "short_name": "Pennywise",
   "description": "Family expense tracking with dashboard and budgets.",
   "id": "/",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay", "browser"],
@@ -21,9 +21,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "url": "/dashboard",
+      "name": "Overview",
+      "short_name": "Overview",
+      "url": "/",
       "description": "View monthly spending overview"
     },
     {

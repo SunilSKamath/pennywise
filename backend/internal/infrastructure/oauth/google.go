@@ -59,16 +59,20 @@ func (g *Google) ExchangeProfile(ctx context.Context, code string) (*userdomain.
 	}
 
 	var profile struct {
-		Subject string `json:"sub"`
-		Email   string `json:"email"`
-		Name    string `json:"name"`
-		Picture string `json:"picture"`
+		Subject       string `json:"sub"`
+		Email         string `json:"email"`
+		EmailVerified bool   `json:"email_verified"`
+		Name          string `json:"name"`
+		Picture       string `json:"picture"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&profile); err != nil {
 		return nil, err
 	}
 	if profile.Subject == "" || profile.Email == "" {
 		return nil, errors.New("google profile is missing subject or email")
+	}
+	if !profile.EmailVerified {
+		return nil, errors.New("google email is not verified")
 	}
 	return &userdomain.User{
 		HouseholdID: 1,

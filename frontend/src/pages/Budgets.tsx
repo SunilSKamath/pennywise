@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { PiggyBank, Plus, Target, Trash2, TrendingDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button";
 import { Skeleton } from "../components/Skeleton";
 import { api } from "../lib/api";
-import { cn, formatMoney, categoryLabel } from "../lib/utils";
+import { cn, formatMoney, categoryLabel, monthLabel } from "../lib/utils";
 
 const currencies = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
 
@@ -12,9 +12,26 @@ function currentMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
-function monthLabel(value: string) {
-  const [year, month] = value.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+function SavingsStat({
+  icon: Icon,
+  label,
+  value,
+  loading,
+  tone = "fern"
+}: {
+  icon: typeof PiggyBank;
+  label: string;
+  value: string;
+  loading?: boolean;
+  tone?: "fern" | "coral";
+}) {
+  return (
+    <article className="panel p-4">
+      <Icon className={tone === "coral" ? "h-5 w-5 text-coral" : "h-5 w-5 text-fern"} />
+      <p className="mt-3 text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-stone-400">{label}</p>
+      {loading ? <Skeleton className="mt-2 h-8 w-24" /> : <p className="mt-1 text-2xl font-extrabold">{value}</p>}
+    </article>
+  );
 }
 
 function BudgetProgress({ spent, budget }: { spent: number; budget: number }) {
@@ -64,6 +81,8 @@ export function Budgets() {
 
   const totalBudget = (budgets.data ?? []).reduce((sum, budget) => sum + budget.amount_minor, 0);
   const totalSpent = dashboard.data?.month_total ?? 0;
+  const remaining = totalBudget - totalSpent;
+  const savingsRate = totalBudget > 0 ? Math.max(0, (remaining / totalBudget) * 100) : 0;
   const displayCurrency = budgets.data?.[0]?.currency_code ?? dashboard.data?.by_category[0]?.currency_code ?? currency;
 
   return (
@@ -88,6 +107,54 @@ export function Budgets() {
             </>
           )}
         </div>
+      </section>
+
+      <section className="panel overflow-hidden">
+        <div className="bg-fern p-6 text-white">
+          <p className="text-sm font-medium text-white/75">{monthLabel(month)} available after budget</p>
+          {dashboard.isLoading || budgets.isLoading ? (
+            <Skeleton className="mt-3 h-10 w-44 bg-white/20" />
+          ) : (
+            <p className="mt-2 text-4xl font-extrabold">{formatMoney(Math.max(0, remaining), displayCurrency)}</p>
+          )}
+          <p className="mt-2 text-sm text-white/75">
+            {totalBudget > 0 ? `${savingsRate.toFixed(0)}% of planned budget left` : "Set budgets to estimate savings"}
+          </p>
+        </div>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <SavingsStat icon={Target} label="Planned budget" value={formatMoney(totalBudget, displayCurrency)} loading={budgets.isLoading} />
+        <SavingsStat icon={TrendingDown} label="Spent" value={formatMoney(totalSpent, displayCurrency)} loading={dashboard.isLoading} />
+        <SavingsStat icon={PiggyBank} label={remaining >= 0 ? "Remaining" : "Over plan"} value={formatMoney(Math.abs(remaining), displayCurrency)} loading={dashboard.isLoading || budgets.isLoading} tone={remaining >= 0 ? "fern" : "coral"} />
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="mb-4 text-lg font-extrabold">Savings by category plan</h2>
+        {(budgets.data ?? []).length === 0 ? (
+          <p className="text-sm text-stone-500 dark:text-stone-400">Create category budgets to track what remains available each month.</p>
+        ) : (
+          <div className="space-y-4">
+            {(budgets.data ?? []).map((budget) => {
+              const category = categories.data?.find((item) => item.id === budget.category_id);
+              const left = budget.amount_minor - budget.spent_minor;
+              const percent = budget.amount_minor > 0 ? Math.min(100, (budget.spent_minor / budget.amount_minor) * 100) : 0;
+              return (
+                <div key={budget.id}>
+                  <div className="mb-1 flex justify-between gap-3 text-sm">
+                    <span className="truncate font-semibold">{category ? categoryLabel(category) : `Category ${budget.category_id}`}</span>
+                    <span className={left >= 0 ? "font-bold text-fern" : "font-bold text-coral"}>
+                      {left >= 0 ? `${formatMoney(left, budget.currency_code)} left` : `${formatMoney(Math.abs(left), budget.currency_code)} over`}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700">
+                    <div className={left >= 0 ? "h-full rounded-full bg-fern" : "h-full rounded-full bg-coral"} style={{ width: `${percent}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="panel space-y-4 p-4 sm:p-5">

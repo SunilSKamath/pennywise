@@ -9,15 +9,11 @@ import { AddExpense } from "./pages/AddExpense";
 import { Budgets } from "./pages/Budgets";
 import { Dashboard } from "./pages/Dashboard";
 import { EditExpense } from "./pages/EditExpense";
-import { ExpenseReport } from "./pages/ExpenseReport";
 import { Expenses } from "./pages/Expenses";
-import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
-import { MonthReview } from "./pages/MonthReview";
 import { Settings } from "./pages/Settings";
 import { Admin } from "./pages/Admin";
 import { PendingApproval } from "./pages/PendingApproval";
-import { Savings } from "./pages/Savings";
 
 export default function App() {
   const theme = usePreferences((state) => state.theme);
@@ -54,18 +50,18 @@ export default function App() {
   return (
     <AppShell user={me.data}>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/reports" element={<ExpenseReport />} />
-        <Route path="/month-review" element={<MonthReview />} />
-        <Route path="/savings" element={<Savings />} />
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
+        <Route path="/reports" element={<Navigate to="/expenses" replace />} />
+        <Route path="/month-review" element={<Navigate to="/expenses" replace />} />
+        <Route path="/savings" element={<Navigate to="/budgets" replace />} />
         <Route path="/budgets" element={<Budgets />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/expenses/:id/edit" element={<EditExpense />} />
         <Route path="/add" element={<AddExpense />} />
         <Route path="/settings" element={<Settings user={me.data} />} />
         {me.data.role === "admin" && <Route path="/admin" element={<Admin currentUser={me.data} />} />}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
   );

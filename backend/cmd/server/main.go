@@ -30,6 +30,9 @@ func main() {
 	if cfg.AdminEmail == "" {
 		log.Fatal("ADMIN_EMAIL is required")
 	}
+	if !cfg.ValidJWTSecret() {
+		log.Fatal("JWT_SECRET must be set to a unique value")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -70,9 +73,9 @@ func main() {
 		Budgets:        budgetService,
 		GoogleOAuth:    oauth.NewGoogle(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL),
 		Users:          userRepo,
-		DevAuthUserID:  cfg.DevAuthUserID,
 		JWTSecret:      cfg.JWTSecret,
 		CookieSecure:   cfg.CookieSecure,
+		CookieSameSite: cfg.CookieSameSite,
 		FrontendURL:    cfg.FrontendURL,
 		PublicDir:      cfg.PublicDir,
 		Logger:         log,

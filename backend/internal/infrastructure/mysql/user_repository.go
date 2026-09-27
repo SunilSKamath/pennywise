@@ -54,15 +54,6 @@ func (r *UserRepository) UpsertGoogle(ctx context.Context, user *domain.User) er
 		return err
 	}
 	user.ID = uint64(id)
-	if isAdminEmail {
-		if _, err := r.db.ExecContext(ctx, `
-			UPDATE users
-			SET role = ?, status = ?
-			WHERE id = ?
-		`, domain.RoleAdmin, domain.StatusActive, user.ID); err != nil {
-			return err
-		}
-	}
 	if err := r.ensureHouseholdAccess(ctx, user.ID, user.HouseholdID); err != nil {
 		return err
 	}
@@ -87,6 +78,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uint64) (*domain.User, 
 	if err := r.attachHouseholds(ctx, &user); err != nil {
 		return nil, err
 	}
+	r.applyAccess(&user)
 	return &user, nil
 }
 
@@ -117,22 +109,36 @@ func (r *UserRepository) ListByHousehold(ctx context.Context, householdID uint64
 		if err := r.attachHouseholds(ctx, &users[i]); err != nil {
 			return nil, err
 		}
+		r.applyAccess(&users[i])
 	}
 	return users, nil
 }
 
 func (r *UserRepository) UpdateAccess(ctx context.Context, id uint64, householdID uint64, role domain.Role, status domain.Status) (*domain.User, error) {
+	if role == domain.RoleAdmin {
+		return nil, errors.New("admin role is reserved for the configured admin email")
+	}
 	if !validRole(role) {
-		return nil, errors.New("role must be admin or user")
+		return nil, errors.New("role must be user")
 	}
 	if !validStatus(status) {
 		return nil, errors.New("status must be pending or active")
 	}
+	existing, err := r.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if r.isAdminEmail(existing.Email) {
+		return nil, errors.New("the admin account cannot be changed")
+	}
+	if existing.HouseholdID != householdID {
+		return nil, sql.ErrNoRows
+	}
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE users
-		SET role = ?, status = ?
+		SET status = ?
 		WHERE id = ? AND household_id = ?
-	`, role, status, id, householdID)
+	`, status, id, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +228,16 @@ func (r *UserRepository) SetHouseholdAccess(ctx context.Context, userID uint64, 
 }
 
 func validRole(role domain.Role) bool {
-	return role == domain.RoleAdmin || role == domain.RoleUser
+	return role == domain.RoleUser
+}
+
+func (r *UserRepository) applyAccess(user *domain.User) {
+	if r.isAdminEmail(user.Email) {
+		user.Role = domain.RoleAdmin
+		user.Status = domain.StatusActive
+		return
+	}
+	user.Role = domain.RoleUser
 }
 
 func validStatus(status domain.Status) bool {

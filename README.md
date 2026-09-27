@@ -8,7 +8,7 @@ managing budgets, and reviewing monthly progress.
 - Google sign-in with household-based access
 - Expense tracking with categories, tags, payment sources, and currencies
 - Dashboard, reports, month review, savings, and category budgets
-- Admin approval and role management
+- Admin approval for household access
 - Mobile-friendly web app that can be added to an iPhone home screen
 
 ## Screenshots
