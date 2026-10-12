@@ -3,6 +3,7 @@ import { LogOut, Plus, ShieldCheck, Users, WalletCards } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/Button";
+import { SubcategoryManager } from "../components/SubcategoryManager";
 import { api, type PaymentSource, type User } from "../lib/api";
 import { usePreferences } from "../lib/store";
 import { categoryLabel } from "../lib/utils";
@@ -152,6 +153,14 @@ export function Settings({ user }: { user: User }) {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="panel p-4 sm:p-5">
+        <h2 className="text-lg font-extrabold">Subcategories</h2>
+        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Group spending inside each category. Removing one keeps it on past expenses.</p>
+        <div className="mt-4">
+          <SubcategoryManager categories={categories.data ?? []} />
         </div>
       </section>
 

@@ -198,6 +198,24 @@ Creates a category. Returns `201`.
 
 `name` is required. An empty `emoji` is stored as `📦`.
 
+### `POST /api/v1/categories/:id/subcategories`
+
+Adds a subcategory child of that category. Returns `201`.
+
+```json
+{ "name": "Order food" }
+```
+
+```json
+{ "id": 3, "name": "Order food" }
+```
+
+`name` is required. An active subcategory with the same name cannot be added twice.
+
+### `DELETE /api/v1/categories/:id/subcategories/:subcategoryId`
+
+Hides that subcategory from new expenses. Returns `204`. Expenses that already use it keep the id and still return its name.
+
 ## Payment sources
 
 ```json
@@ -324,24 +342,6 @@ Creates a household and adds it to the admin's access. Returns `201`.
 ```
 
 `name` is required. `base_currency_code` must be three letters.
-
-### `POST /api/v1/admin/categories/:id/subcategories`
-
-Adds a subcategory child of that category. Returns `201`.
-
-```json
-{ "name": "Order food" }
-```
-
-```json
-{ "id": 3, "name": "Order food" }
-```
-
-`name` is required. An active subcategory with the same name cannot be added twice.
-
-### `DELETE /api/v1/admin/categories/:id/subcategories/:subcategoryId`
-
-Hides that subcategory from new expenses. Returns `204`. Expenses that already use it keep the id and still return its name.
 
 ## Health
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, ShieldCheck, UserCheck, X } from "lucide-react";
+import { Building2, Plus, ShieldCheck, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../components/Button";
 import { Skeleton } from "../components/Skeleton";
@@ -11,8 +11,6 @@ export function Admin({ currentUser }: { currentUser: User }) {
   const [householdCurrency, setHouseholdCurrency] = useState("INR");
   const users = useQuery({ queryKey: ["admin-users"], queryFn: api.users });
   const households = useQuery({ queryKey: ["admin-households"], queryFn: api.households });
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const [subcategoryNames, setSubcategoryNames] = useState<Record<number, string>>({});
   const updateAccess = useMutation({
     mutationFn: ({ id, status }: { id: number; status: User["status"] }) =>
       api.updateUserAccess(id, { role: "user", status }),
@@ -40,22 +38,6 @@ export function Admin({ currentUser }: { currentUser: User }) {
         queryClient.invalidateQueries({ queryKey: ["admin-households"] }),
         queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
         queryClient.invalidateQueries({ queryKey: ["me"] })
-      ]);
-    }
-  });
-  const createSubcategory = useMutation({
-    mutationFn: ({ categoryID, name }: { categoryID: number; name: string }) => api.createSubcategory(categoryID, name),
-    onSuccess: async (_created, variables) => {
-      setSubcategoryNames((current) => ({ ...current, [variables.categoryID]: "" }));
-      await queryClient.invalidateQueries({ queryKey: ["categories"] });
-    }
-  });
-  const removeSubcategory = useMutation({
-    mutationFn: ({ categoryID, subcategoryID }: { categoryID: number; subcategoryID: number }) => api.deleteSubcategory(categoryID, subcategoryID),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["categories"] }),
-        queryClient.invalidateQueries({ queryKey: ["expenses"] })
       ]);
     }
   });
@@ -103,64 +85,6 @@ export function Admin({ currentUser }: { currentUser: User }) {
             </span>
           ))}
         </div>
-      </section>
-
-      <section className="panel p-4 sm:p-5">
-        <div className="mb-4">
-          <h2 className="text-lg font-extrabold">Subcategories</h2>
-          <p className="text-sm text-stone-500 dark:text-stone-400">Add or remove a child under its category. Older expenses keep a removed name.</p>
-        </div>
-        {categories.isLoading ? (
-          <Skeleton className="h-24" />
-        ) : (
-          <div className="space-y-4">
-            {(categories.data ?? []).map((category) => {
-              const children = (category.subcategories ?? []).filter((subcategory) => !subcategory.deleted);
-              return (
-                <div key={category.id} className="rounded-xl bg-mist p-3 dark:bg-stone-800">
-                  <p className="font-bold">{category.emoji} {category.name}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {children.map((subcategory) => (
-                      <span key={subcategory.id} className="inline-flex h-10 items-center gap-1 rounded-full bg-white px-3 text-sm font-semibold dark:bg-stone-950">
-                        {subcategory.name}
-                        <button
-                          className="grid h-6 w-6 place-items-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800"
-                          type="button"
-                          aria-label={`Remove ${subcategory.name}`}
-                          disabled={removeSubcategory.isPending}
-                          onClick={() => removeSubcategory.mutate({ categoryID: category.id, subcategoryID: subcategory.id })}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <form
-                    className="mt-3 grid grid-cols-[minmax(0,1fr)_48px] gap-2"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const name = (subcategoryNames[category.id] ?? "").trim();
-                      if (name) createSubcategory.mutate({ categoryID: category.id, name });
-                    }}
-                  >
-                    <input
-                      className="control min-w-0"
-                      value={subcategoryNames[category.id] ?? ""}
-                      onChange={(event) => setSubcategoryNames((current) => ({ ...current, [category.id]: event.target.value }))}
-                      placeholder="Add subcategory"
-                      aria-label={`Add subcategory for ${category.name}`}
-                    />
-                    <Button className="w-12 px-0" aria-label={`Add subcategory for ${category.name}`} disabled={createSubcategory.isPending}>
-                      <Plus className="h-5 w-5" />
-                    </Button>
-                  </form>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {createSubcategory.error && <p className="mt-3 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{createSubcategory.error.message}</p>}
-        {removeSubcategory.error && <p className="mt-3 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{removeSubcategory.error.message}</p>}
       </section>
 
       <section className="panel p-4 sm:p-5">

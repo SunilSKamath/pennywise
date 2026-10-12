@@ -194,9 +194,9 @@ export const api = {
   createHousehold: (payload: Pick<Household, "name" | "base_currency_code">) =>
     request<Household>("/admin/households", { method: "POST", body: JSON.stringify(payload) }),
   createSubcategory: (categoryID: number, name: string) =>
-    request<Subcategory>(`/admin/categories/${categoryID}/subcategories`, { method: "POST", body: JSON.stringify({ name }) }),
+    request<Subcategory>(`/categories/${categoryID}/subcategories`, { method: "POST", body: JSON.stringify({ name }) }),
   deleteSubcategory: (categoryID: number, subcategoryID: number) =>
-    request<void>(`/admin/categories/${categoryID}/subcategories/${subcategoryID}`, { method: "DELETE" }),
+    request<void>(`/categories/${categoryID}/subcategories/${subcategoryID}`, { method: "DELETE" }),
   updateUserHouseholds: (id: number, householdIDs: number[]) =>
     request<User>(`/admin/users/${id}/households`, { method: "PATCH", body: JSON.stringify({ household_ids: householdIDs }) }),
   dashboard: (month = new Date().toISOString().slice(0, 7)) => request<DashboardSummary>(`/dashboard?month=${month}`),

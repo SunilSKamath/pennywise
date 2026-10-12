@@ -77,6 +77,8 @@ func NewRouter(services Services) *fiber.App {
 	protected := api.Group("", activeUser())
 	protected.Get("/categories", listCategories(services.Categories))
 	protected.Post("/categories", createCategory(services.Categories))
+	protected.Post("/categories/:id/subcategories", createSubcategory(services.Categories))
+	protected.Delete("/categories/:id/subcategories/:subcategoryId", deleteSubcategory(services.Categories))
 	protected.Get("/payment-sources", listPaymentSources(services.PaymentSources))
 	protected.Post("/payment-sources", createPaymentSource(services.PaymentSources))
 	protected.Post("/expenses", createExpense(services.Expenses))
@@ -96,8 +98,6 @@ func NewRouter(services Services) *fiber.App {
 	admin.Patch("/users/:id/households", updateUserHouseholds(services.Users))
 	admin.Get("/households", listHouseholds(services.Users))
 	admin.Post("/households", createHousehold(services.Users))
-	admin.Post("/categories/:id/subcategories", createSubcategory(services.Categories))
-	admin.Delete("/categories/:id/subcategories/:subcategoryId", deleteSubcategory(services.Categories))
 
 	app.Use("/api", missingBackendRoute())
 	app.Use("/auth", missingBackendRoute())
