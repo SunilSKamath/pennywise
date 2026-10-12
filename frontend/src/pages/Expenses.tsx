@@ -55,7 +55,8 @@ export function Expenses() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["expenses"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-        queryClient.invalidateQueries({ queryKey: ["budgets"] })
+        queryClient.invalidateQueries({ queryKey: ["budgets"] }),
+        queryClient.invalidateQueries({ queryKey: ["tags"] })
       ]);
     }
   });

@@ -67,6 +67,9 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *domain.Expense)
 	if err := r.syncExpenseTags(ctx, tx, expense.ID, expense.HouseholdID, expense.Tags); err != nil {
 		return err
 	}
+	if err := r.deleteUnusedTags(ctx, tx, expense.HouseholdID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -112,16 +115,33 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense domain.Expense) 
 	if err := r.syncExpenseTags(ctx, tx, expense.ID, expense.HouseholdID, expense.Tags); err != nil {
 		return err
 	}
+	if err := r.deleteUnusedTags(ctx, tx, expense.HouseholdID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
 func (r *ExpenseRepository) Delete(ctx context.Context, id uint64, householdID uint64) error {
-	_, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE expenses
 		SET deleted_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND household_id = ? AND deleted_at IS NULL
-	`, id, householdID)
-	return err
+	`, id, householdID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM expense_tags WHERE expense_id = ?`, id); err != nil {
+		return err
+	}
+	if err := r.deleteUnusedTags(ctx, tx, householdID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *ExpenseRepository) GetByID(ctx context.Context, id uint64, householdID uint64) (*domain.Expense, error) {
@@ -236,6 +256,9 @@ func (r *ExpenseRepository) List(ctx context.Context, filter domain.Filter) ([]d
 }
 
 func (r *ExpenseRepository) ListTags(ctx context.Context, householdID uint64, search string) ([]domain.Tag, error) {
+	if err := r.deleteUnusedTags(ctx, r.db, householdID); err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT id, household_id, name
 		FROM tags
@@ -428,6 +451,26 @@ func (r *ExpenseRepository) ensureTag(ctx context.Context, tx execQuerier, house
 		return 0, err
 	}
 	return id, nil
+}
+
+func (r *ExpenseRepository) deleteUnusedTags(ctx context.Context, exec execQuerier, householdID uint64) error {
+	if _, err := exec.ExecContext(ctx, `
+		DELETE et
+		FROM expense_tags et
+		INNER JOIN expenses e ON e.id = et.expense_id
+		INNER JOIN tags t ON t.id = et.tag_id
+		WHERE t.household_id = ? AND e.deleted_at IS NOT NULL
+	`, householdID); err != nil {
+		return err
+	}
+	_, err := exec.ExecContext(ctx, `
+		DELETE FROM tags
+		WHERE household_id = ?
+			AND NOT EXISTS (
+				SELECT 1 FROM expense_tags et WHERE et.tag_id = tags.id
+			)
+	`, householdID)
+	return err
 }
 
 func (r *ExpenseRepository) attachExpenseTags(ctx context.Context, expense *domain.Expense) error {

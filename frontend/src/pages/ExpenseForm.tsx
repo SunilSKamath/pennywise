@@ -75,7 +75,8 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["expenses"] }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["tags"] })
       ]);
       navigate(isEditing ? "/expenses" : "/");
     }
