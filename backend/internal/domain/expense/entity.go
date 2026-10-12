@@ -15,6 +15,8 @@ type Expense struct {
 	ConvertedCurrencyCode string          `json:"converted_currency_code"`
 	ExchangeRate          decimal.Decimal `json:"exchange_rate"`
 	CategoryID            uint64          `json:"category_id"`
+	SubcategoryID         *uint64         `json:"subcategory_id"`
+	SubcategoryName       string          `json:"subcategory_name"`
 	PaymentSourceID       uint64          `json:"payment_source_id"`
 	Merchant              string          `json:"merchant"`
 	Notes                 string          `json:"notes"`
@@ -27,15 +29,16 @@ type Expense struct {
 }
 
 type Filter struct {
-	DateFrom        *time.Time
-	DateTo          *time.Time
-	CategoryID      *uint64
-	PaymentSourceID *uint64
-	HouseholdID     *uint64
-	Search          string
-	Tags            []string
-	Limit           uint64
-	Offset          uint64
+	DateFrom         *time.Time
+	DateTo           *time.Time
+	CategoryIDs      []uint64
+	SubcategoryIDs   []uint64
+	PaymentSourceIDs []uint64
+	HouseholdID      *uint64
+	Search           string
+	Tags             []string
+	Limit            uint64
+	Offset           uint64
 }
 
 type SummaryRow struct {

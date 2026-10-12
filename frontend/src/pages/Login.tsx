@@ -11,6 +11,7 @@ export function Login() {
           <div>
             <h1 className="text-2xl font-extrabold">Pennywise</h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">Family spending</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">v{__APP_VERSION__}</p>
           </div>
         </div>
 

@@ -39,6 +39,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Expens
 	if err := s.validateReferences(ctx, input.CategoryID, input.PaymentSourceID); err != nil {
 		return nil, err
 	}
+	subcategoryID, subcategoryName, err := s.normalizeSubcategory(ctx, input.CategoryID, input.SubcategoryID, nil, true)
+	if err != nil {
+		return nil, err
+	}
 	if input.OriginalAmountMinor <= 0 {
 		return nil, errors.New("amount must be greater than zero")
 	}
@@ -70,6 +74,8 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Expens
 		ConvertedCurrencyCode: conversion.ConvertedCurrencyCode,
 		ExchangeRate:          conversion.ExchangeRate,
 		CategoryID:            input.CategoryID,
+		SubcategoryID:         subcategoryID,
+		SubcategoryName:       subcategoryName,
 		PaymentSourceID:       input.PaymentSourceID,
 		Merchant:              strings.TrimSpace(input.Merchant),
 		Notes:                 strings.TrimSpace(input.Notes),
@@ -103,6 +109,10 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (*domain.Expens
 	if err := s.validateReferences(ctx, categoryID, paymentSourceID); err != nil {
 		return nil, err
 	}
+	subcategoryID, subcategoryName, err := s.resolveUpdatedSubcategory(ctx, categoryID, existing, input)
+	if err != nil {
+		return nil, err
+	}
 
 	if input.OriginalAmountMinor != nil || input.OriginalCurrencyCode != nil {
 		amount := existing.OriginalAmountMinor
@@ -128,6 +138,8 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (*domain.Expens
 	}
 
 	existing.CategoryID = categoryID
+	existing.SubcategoryID = subcategoryID
+	existing.SubcategoryName = subcategoryName
 	existing.PaymentSourceID = paymentSourceID
 	if input.Merchant != nil {
 		existing.Merchant = strings.TrimSpace(*input.Merchant)
@@ -183,10 +195,57 @@ func (s *Service) validateReferences(ctx context.Context, categoryID uint64, pay
 	return nil
 }
 
+func (s *Service) resolveUpdatedSubcategory(ctx context.Context, categoryID uint64, existing *domain.Expense, input UpdateInput) (*uint64, string, error) {
+	if input.SubcategorySet {
+		return s.normalizeSubcategory(ctx, categoryID, input.SubcategoryID, existing.SubcategoryID, false)
+	}
+	current := existing.SubcategoryID
+	if current != nil {
+		subcategory, err := s.categories.GetSubcategory(ctx, *current)
+		if err != nil || subcategory.CategoryID != categoryID {
+			current = nil
+		}
+	}
+	return s.normalizeSubcategory(ctx, categoryID, current, existing.SubcategoryID, false)
+}
+
+func (s *Service) normalizeSubcategory(ctx context.Context, categoryID uint64, subcategoryID *uint64, previousID *uint64, require bool) (*uint64, string, error) {
+	category, err := s.categories.GetByID(ctx, categoryID)
+	if err != nil {
+		return nil, "", err
+	}
+	active := 0
+	for _, subcategory := range category.Subcategories {
+		if !subcategory.Deleted {
+			active++
+		}
+	}
+	if subcategoryID == nil || *subcategoryID == 0 {
+		if require && active > 0 {
+			return nil, "", errors.New("subcategory_id is required")
+		}
+		return nil, "", nil
+	}
+	subcategory, err := s.categories.GetSubcategory(ctx, *subcategoryID)
+	if err != nil {
+		return nil, "", err
+	}
+	if subcategory.CategoryID != categoryID {
+		return nil, "", errors.New("subcategory does not belong to the category")
+	}
+	kept := previousID != nil && *previousID == subcategory.ID
+	if subcategory.Deleted && !kept {
+		return nil, "", errors.New("subcategory is not available")
+	}
+	id := subcategory.ID
+	return &id, subcategory.Name, nil
+}
+
 type CreateInput struct {
 	OriginalAmountMinor  int64
 	OriginalCurrencyCode string
 	CategoryID           uint64
+	SubcategoryID        *uint64
 	PaymentSourceID      uint64
 	Merchant             string
 	Notes                string
@@ -203,6 +262,8 @@ type UpdateInput struct {
 	OriginalAmountMinor  *int64
 	OriginalCurrencyCode *string
 	CategoryID           *uint64
+	SubcategoryID        *uint64
+	SubcategorySet       bool
 	PaymentSourceID      *uint64
 	Merchant             *string
 	Notes                *string

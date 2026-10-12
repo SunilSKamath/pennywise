@@ -96,6 +96,8 @@ func NewRouter(services Services) *fiber.App {
 	admin.Patch("/users/:id/households", updateUserHouseholds(services.Users))
 	admin.Get("/households", listHouseholds(services.Users))
 	admin.Post("/households", createHousehold(services.Users))
+	admin.Post("/categories/:id/subcategories", createSubcategory(services.Categories))
+	admin.Delete("/categories/:id/subcategories/:subcategoryId", deleteSubcategory(services.Categories))
 
 	app.Use("/api", missingBackendRoute())
 	app.Use("/auth", missingBackendRoute())
@@ -461,6 +463,51 @@ func createCategory(service *applicationcategory.Service) fiber.Handler {
 	}
 }
 
+func createSubcategory(service *applicationcategory.Service) fiber.Handler {
+	type request struct {
+		Name string `json:"name"`
+	}
+	return func(c fiber.Ctx) error {
+		categoryID, err := pathID(c)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		var req request
+		if err := c.Bind().Body(&req); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		subcategory, err := service.CreateSubcategory(context.Background(), categoryID, req.Name)
+		if err != nil {
+			return subcategoryError(err)
+		}
+		return c.Status(fiber.StatusCreated).JSON(subcategory)
+	}
+}
+
+func deleteSubcategory(service *applicationcategory.Service) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		categoryID, err := pathID(c)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		subcategoryID, err := strconv.ParseUint(c.Params("subcategoryId"), 10, 64)
+		if err != nil || subcategoryID == 0 {
+			return fiber.NewError(fiber.StatusBadRequest, "id must be a positive integer")
+		}
+		if err := service.DeleteSubcategory(context.Background(), categoryID, subcategoryID); err != nil {
+			return subcategoryError(err)
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+}
+
+func subcategoryError(err error) error {
+	if err.Error() == "category not found" || err.Error() == "subcategory not found" {
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	}
+	return fiber.NewError(fiber.StatusBadRequest, err.Error())
+}
+
 func listPaymentSources(service *applicationpaymentsource.Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		paymentSources, err := service.List(context.Background())
@@ -499,6 +546,7 @@ func createExpense(service *applicationexpense.Service) fiber.Handler {
 		OriginalAmountMinor  int64    `json:"original_amount_minor"`
 		OriginalCurrencyCode string   `json:"original_currency_code"`
 		CategoryID           uint64   `json:"category_id"`
+		SubcategoryID        *uint64  `json:"subcategory_id"`
 		PaymentSourceID      uint64   `json:"payment_source_id"`
 		Merchant             string   `json:"merchant"`
 		Notes                string   `json:"notes"`
@@ -508,7 +556,7 @@ func createExpense(service *applicationexpense.Service) fiber.Handler {
 	}
 	return func(c fiber.Ctx) error {
 		var req request
-		if err := c.Bind().Body(&req); err != nil {
+		if err := json.Unmarshal(c.Body(), &req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		expenseDate, err := parseOptionalDate(req.ExpenseDate)
@@ -519,6 +567,7 @@ func createExpense(service *applicationexpense.Service) fiber.Handler {
 			OriginalAmountMinor:  req.OriginalAmountMinor,
 			OriginalCurrencyCode: req.OriginalCurrencyCode,
 			CategoryID:           req.CategoryID,
+			SubcategoryID:        normalizeOptionalID(req.SubcategoryID),
 			PaymentSourceID:      req.PaymentSourceID,
 			Merchant:             req.Merchant,
 			Notes:                req.Notes,
@@ -567,15 +616,16 @@ func getExpense(service *applicationexpense.Service) fiber.Handler {
 
 func updateExpense(service *applicationexpense.Service) fiber.Handler {
 	type request struct {
-		OriginalAmountMinor  *int64    `json:"original_amount_minor"`
-		OriginalCurrencyCode *string   `json:"original_currency_code"`
-		CategoryID           *uint64   `json:"category_id"`
-		PaymentSourceID      *uint64   `json:"payment_source_id"`
-		Merchant             *string   `json:"merchant"`
-		Notes                *string   `json:"notes"`
-		ExpenseDate          *string   `json:"expense_date"`
-		MetadataJSON         *string   `json:"metadata_json"`
-		Tags                 *[]string `json:"tags"`
+		OriginalAmountMinor  *int64       `json:"original_amount_minor"`
+		OriginalCurrencyCode *string      `json:"original_currency_code"`
+		CategoryID           *uint64      `json:"category_id"`
+		SubcategoryID        optionalUint `json:"subcategory_id"`
+		PaymentSourceID      *uint64      `json:"payment_source_id"`
+		Merchant             *string      `json:"merchant"`
+		Notes                *string      `json:"notes"`
+		ExpenseDate          *string      `json:"expense_date"`
+		MetadataJSON         *string      `json:"metadata_json"`
+		Tags                 *[]string    `json:"tags"`
 	}
 	return func(c fiber.Ctx) error {
 		id, err := pathID(c)
@@ -583,7 +633,10 @@ func updateExpense(service *applicationexpense.Service) fiber.Handler {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		var req request
-		if err := c.Bind().Body(&req); err != nil {
+		if len(c.Body()) == 0 {
+			return fiber.NewError(fiber.StatusBadRequest, "request body is required")
+		}
+		if err := json.Unmarshal(c.Body(), &req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		expenseDate, err := parseOptionalDatePointer(req.ExpenseDate)
@@ -596,6 +649,8 @@ func updateExpense(service *applicationexpense.Service) fiber.Handler {
 			OriginalAmountMinor:  req.OriginalAmountMinor,
 			OriginalCurrencyCode: req.OriginalCurrencyCode,
 			CategoryID:           req.CategoryID,
+			SubcategoryID:        req.SubcategoryID.ID,
+			SubcategorySet:       req.SubcategoryID.Set,
 			PaymentSourceID:      req.PaymentSourceID,
 			Merchant:             req.Merchant,
 			Notes:                req.Notes,
@@ -725,18 +780,25 @@ func parseExpenseFilter(c fiber.Ctx) (expensedomain.Filter, error) {
 		filter.DateTo = &exclusive
 	}
 	if value := c.Query("category_id"); value != "" {
-		parsed, err := strconv.ParseUint(value, 10, 64)
+		parsed, err := parseIDList(value, "category_id")
 		if err != nil {
-			return filter, errors.New("category_id must be an integer")
+			return filter, err
 		}
-		filter.CategoryID = &parsed
+		filter.CategoryIDs = parsed
+	}
+	if value := c.Query("subcategory_id"); value != "" {
+		parsed, err := parseIDList(value, "subcategory_id")
+		if err != nil {
+			return filter, err
+		}
+		filter.SubcategoryIDs = parsed
 	}
 	if value := c.Query("payment_source_id"); value != "" {
-		parsed, err := strconv.ParseUint(value, 10, 64)
+		parsed, err := parseIDList(value, "payment_source_id")
 		if err != nil {
-			return filter, errors.New("payment_source_id must be an integer")
+			return filter, err
 		}
-		filter.PaymentSourceID = &parsed
+		filter.PaymentSourceIDs = parsed
 	}
 	if value := strings.TrimSpace(c.Query("search", c.Query("q"))); value != "" {
 		filter.Search = value
@@ -763,6 +825,48 @@ func parseExpenseFilter(c fiber.Ctx) (expensedomain.Filter, error) {
 		filter.Offset = parsed
 	}
 	return filter, nil
+}
+
+func parseIDList(value string, name string) ([]uint64, error) {
+	ids := []uint64{}
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		parsed, err := strconv.ParseUint(part, 10, 64)
+		if err != nil || parsed == 0 {
+			return nil, errors.New(name + " must be a list of positive integers")
+		}
+		ids = append(ids, parsed)
+	}
+	return ids, nil
+}
+
+func normalizeOptionalID(id *uint64) *uint64 {
+	if id == nil || *id == 0 {
+		return nil
+	}
+	return id
+}
+
+type optionalUint struct {
+	Set bool
+	ID  *uint64
+}
+
+func (o *optionalUint) UnmarshalJSON(data []byte) error {
+	o.Set = true
+	if string(data) == "null" {
+		o.ID = nil
+		return nil
+	}
+	var id uint64
+	if err := json.Unmarshal(data, &id); err != nil {
+		return err
+	}
+	o.ID = normalizeOptionalID(&id)
+	return nil
 }
 
 func pathID(c fiber.Ctx) (uint64, error) {

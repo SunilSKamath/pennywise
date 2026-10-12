@@ -96,6 +96,8 @@ Returns the signed-in user.
   "converted_currency_code": "INR",
   "exchange_rate": "1.0000000000",
   "category_id": 1,
+  "subcategory_id": 3,
+  "subcategory_name": "Order food",
   "payment_source_id": 1,
   "merchant": "Store",
   "notes": "",
@@ -116,8 +118,9 @@ Returns an array of expenses for the selected household, newest first.
 | --- | --- |
 | `date_from` | Inclusive start, `YYYY-MM-DD` or RFC3339 |
 | `date_to` | Inclusive end date. The filter uses the following day as an exclusive bound |
-| `category_id` | Category id |
-| `payment_source_id` | Payment source id |
+| `category_id` | Comma-separated category ids. An expense matches any of them |
+| `subcategory_id` | Comma-separated subcategory ids. An expense matches any of them |
+| `payment_source_id` | Comma-separated payment source ids. An expense matches any of them |
 | `search` or `q` | Case-insensitive match on merchant, notes, tags, category, payment source, currency, and amount |
 | `tags` or `tag` | Comma-separated tag names. Every tag must match |
 | `limit` | Page size. `0` and values above `200` are treated as `50` |
@@ -132,6 +135,7 @@ Creates an expense. Returns `201` and the expense.
   "original_amount_minor": 25000,
   "original_currency_code": "INR",
   "category_id": 1,
+  "subcategory_id": 3,
   "payment_source_id": 1,
   "merchant": "Store",
   "notes": "",
@@ -141,7 +145,7 @@ Creates an expense. Returns `201` and the expense.
 }
 ```
 
-`original_amount_minor` must be greater than zero. `expense_date` may be omitted and then defaults to the current time.
+`original_amount_minor` must be greater than zero. `expense_date` may be omitted and then defaults to the current time. `subcategory_id` is required when the category has active subcategories, and it must be an active child of that category.
 
 ### `GET /api/v1/expenses/:id`
 
@@ -149,7 +153,7 @@ Returns one expense in the selected household, or `404`.
 
 ### `PATCH /api/v1/expenses/:id`
 
-Updates the expense. Send only the fields to change. `tags` replaces the full set when present. Returns the expense.
+Updates the expense. Send only the fields to change. `tags` replaces the full set when present. `subcategory_id` may be `null` on an existing expense. A removed subcategory can stay on that expense while the category is still its parent. Changing the category clears a subcategory that belongs to another category. Returns the expense, including `subcategory_name` for display.
 
 ### `DELETE /api/v1/expenses/:id`
 
@@ -170,12 +174,19 @@ Returns up to 30 tags still used by an expense in the selected household. A tag 
 ## Categories
 
 ```json
-{ "id": 1, "name": "Food", "emoji": "🍽️" }
+{
+  "id": 1,
+  "name": "Food",
+  "emoji": "🍽️",
+  "subcategories": [
+    { "id": 3, "name": "Order food" }
+  ]
+}
 ```
 
 ### `GET /api/v1/categories`
 
-Returns every category. Categories are shared across households.
+Returns every category with its active subcategories. A removed subcategory is included, with `"deleted": true`, only while an expense still uses it. Categories are shared across households.
 
 ### `POST /api/v1/categories`
 
@@ -313,6 +324,24 @@ Creates a household and adds it to the admin's access. Returns `201`.
 ```
 
 `name` is required. `base_currency_code` must be three letters.
+
+### `POST /api/v1/admin/categories/:id/subcategories`
+
+Adds a subcategory child of that category. Returns `201`.
+
+```json
+{ "name": "Order food" }
+```
+
+```json
+{ "id": 3, "name": "Order food" }
+```
+
+`name` is required. An active subcategory with the same name cannot be added twice.
+
+### `DELETE /api/v1/admin/categories/:id/subcategories/:subcategoryId`
+
+Hides that subcategory from new expenses. Returns `204`. Expenses that already use it keep the id and still return its name.
 
 ## Health
 

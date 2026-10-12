@@ -51,6 +51,7 @@ export function AppShell({ children, user }: AppShellProps) {
             <div>
               <p className="text-lg font-extrabold">Pennywise</p>
               <p className="text-xs text-stone-500 dark:text-stone-400">Family spending</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">v{__APP_VERSION__}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

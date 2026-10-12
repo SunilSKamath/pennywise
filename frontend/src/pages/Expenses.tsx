@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { ExpenseRow } from "../components/ExpenseRow";
+import { MultiSelect } from "../components/MultiSelect";
 import { Skeleton } from "../components/Skeleton";
 import { TagInput } from "../components/TagInput";
 import { api, type Expense, type ExpenseFilters } from "../lib/api";
@@ -23,16 +24,18 @@ export function Expenses() {
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState(startingBounds.from);
   const [dateTo, setDateTo] = useState(startingBounds.to);
-  const [categoryID, setCategoryID] = useState<number | "">("");
-  const [paymentSourceID, setPaymentSourceID] = useState<number | "">("");
+  const [categoryIDs, setCategoryIDs] = useState<number[]>([]);
+  const [subcategoryIDs, setSubcategoryIDs] = useState<number[]>([]);
+  const [paymentSourceIDs, setPaymentSourceIDs] = useState<number[]>([]);
   const [tags, setTags] = useState<string[]>([]);
 
   const filters: ExpenseFilters = {
     search,
     date_from: dateFrom,
     date_to: dateTo,
-    category_id: categoryID,
-    payment_source_id: paymentSourceID,
+    category_id: categoryIDs,
+    subcategory_id: subcategoryIDs,
+    payment_source_id: paymentSourceIDs,
     tags,
     limit: 200
   };
@@ -84,7 +87,7 @@ export function Expenses() {
     return "Spending is within the tracked budget categories.";
   }, [monthTotal, overBudgets.length, delta]);
 
-  const hasFilters = Boolean(search || dateFrom || dateTo || categoryID || paymentSourceID || tags.length > 0);
+  const hasFilters = Boolean(search || dateFrom || dateTo || categoryIDs.length || subcategoryIDs.length || paymentSourceIDs.length || tags.length > 0);
 
   const selectMonth = (value: string) => {
     if (!value) return;
@@ -186,21 +189,38 @@ export function Expenses() {
             placeholder="Search merchant, notes, category, payment, amount, date"
           />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <input className="control" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="From date" />
           <input className="control" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} aria-label="To date" />
-          <select className="control" value={categoryID} onChange={(event) => setCategoryID(event.target.value ? Number(event.target.value) : "")}>
-            <option value="">All categories</option>
-            {(categories.data ?? []).map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
-          <select className="control" value={paymentSourceID} onChange={(event) => setPaymentSourceID(event.target.value ? Number(event.target.value) : "")}>
-            <option value="">All payments</option>
-            {(paymentSources.data ?? []).map((source) => (
-              <option key={source.id} value={source.id}>{source.name}</option>
-            ))}
-          </select>
+          <MultiSelect
+            label="Category"
+            placeholder="All categories"
+            options={(categories.data ?? []).map((category) => ({ id: category.id, name: category.name }))}
+            value={categoryIDs}
+            onChange={(ids) => {
+              setCategoryIDs(ids);
+              const allowed = new Set(ids);
+              setSubcategoryIDs((current) => current.filter((id) => {
+                const parent = (categories.data ?? []).find((category) => (category.subcategories ?? []).some((subcategory) => subcategory.id === id));
+                return ids.length === 0 || Boolean(parent && allowed.has(parent.id));
+              }));
+            }}
+          />
+          <MultiSelect
+            label="Subcategory"
+            placeholder="All subcategories"
+            options={(categoryIDs.length ? (categories.data ?? []).filter((category) => categoryIDs.includes(category.id)) : (categories.data ?? []))
+              .flatMap((category) => (category.subcategories ?? []).map((subcategory) => ({ id: subcategory.id, name: subcategory.name, group: category.name })))}
+            value={subcategoryIDs}
+            onChange={setSubcategoryIDs}
+          />
+          <MultiSelect
+            label="Payment"
+            placeholder="All payments"
+            options={(paymentSources.data ?? []).map((source) => ({ id: source.id, name: source.name }))}
+            value={paymentSourceIDs}
+            onChange={setPaymentSourceIDs}
+          />
           <Button
             variant="secondary"
             disabled={!hasFilters}
@@ -208,8 +228,9 @@ export function Expenses() {
               setSearch("");
               setDateFrom("");
               setDateTo("");
-              setCategoryID("");
-              setPaymentSourceID("");
+              setCategoryIDs([]);
+              setSubcategoryIDs([]);
+              setPaymentSourceIDs([]);
               setTags([]);
             }}
           >

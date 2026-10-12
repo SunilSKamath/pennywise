@@ -1,10 +1,17 @@
 // Client for the Pennywise HTTP API. The contract is documented in docs/api.md.
 import { usePreferences } from "./store";
 
+export type Subcategory = {
+  id: number;
+  name: string;
+  deleted?: boolean;
+};
+
 export type Category = {
   id: number;
   name: string;
   emoji: string;
+  subcategories: Subcategory[];
 };
 
 export type PaymentSource = {
@@ -22,6 +29,8 @@ export type Expense = {
   converted_amount_minor: number;
   converted_currency_code: string;
   category_id: number;
+  subcategory_id: number | null;
+  subcategory_name: string;
   payment_source_id: number;
   merchant: string;
   notes: string;
@@ -95,6 +104,7 @@ export type CreateExpensePayload = {
   original_amount_minor: number;
   original_currency_code: string;
   category_id: number;
+  subcategory_id?: number | null;
   payment_source_id: number;
   merchant: string;
   notes?: string;
@@ -109,8 +119,9 @@ export type ExpenseFilters = {
   search?: string;
   date_from?: string;
   date_to?: string;
-  category_id?: number | "";
-  payment_source_id?: number | "";
+  category_id?: number[];
+  subcategory_id?: number[];
+  payment_source_id?: number[];
   tags?: string[];
   limit?: number;
   offset?: number;
@@ -182,6 +193,10 @@ export const api = {
   households: () => request<Household[]>("/admin/households"),
   createHousehold: (payload: Pick<Household, "name" | "base_currency_code">) =>
     request<Household>("/admin/households", { method: "POST", body: JSON.stringify(payload) }),
+  createSubcategory: (categoryID: number, name: string) =>
+    request<Subcategory>(`/admin/categories/${categoryID}/subcategories`, { method: "POST", body: JSON.stringify({ name }) }),
+  deleteSubcategory: (categoryID: number, subcategoryID: number) =>
+    request<void>(`/admin/categories/${categoryID}/subcategories/${subcategoryID}`, { method: "DELETE" }),
   updateUserHouseholds: (id: number, householdIDs: number[]) =>
     request<User>(`/admin/users/${id}/households`, { method: "PATCH", body: JSON.stringify({ household_ids: householdIDs }) }),
   dashboard: (month = new Date().toISOString().slice(0, 7)) => request<DashboardSummary>(`/dashboard?month=${month}`),

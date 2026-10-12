@@ -6,4 +6,7 @@ type Repository interface {
 	Create(ctx context.Context, category *Category) error
 	GetByID(ctx context.Context, id uint64) (*Category, error)
 	List(ctx context.Context) ([]Category, error)
+	GetSubcategory(ctx context.Context, id uint64) (*Subcategory, error)
+	CreateSubcategory(ctx context.Context, subcategory *Subcategory) error
+	DeleteSubcategory(ctx context.Context, categoryID uint64, subcategoryID uint64) error
 }

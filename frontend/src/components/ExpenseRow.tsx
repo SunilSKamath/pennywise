@@ -37,7 +37,7 @@ export function ExpenseRow({
           <p className="max-w-[8.5rem] truncate text-right font-bold sm:max-w-none">{formatMoney(expense.original_amount_minor, expense.original_currency_code)}</p>
         </div>
         <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
-          <span className="truncate">{category}</span>
+          <span className="truncate">{category}{expense.subcategory_name ? ` · ${expense.subcategory_name}` : ""}</span>
           <span aria-hidden="true">/</span>
           <span className="truncate">{paymentSource}</span>
           <span aria-hidden="true">/</span>

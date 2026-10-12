@@ -34,13 +34,14 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *domain.Expense)
 			converted_currency_code,
 			exchange_rate,
 			category_id,
+			subcategory_id,
 			payment_source_id,
 			merchant,
 			notes,
 			expense_date,
 			created_by,
 			metadata_json
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''))
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''))
 	`,
 		expense.HouseholdID,
 		expense.OriginalAmountMinor,
@@ -49,6 +50,7 @@ func (r *ExpenseRepository) Create(ctx context.Context, expense *domain.Expense)
 		expense.ConvertedCurrencyCode,
 		expense.ExchangeRate.StringFixed(10),
 		expense.CategoryID,
+		subcategoryValue(expense.SubcategoryID),
 		expense.PaymentSourceID,
 		expense.Merchant,
 		expense.Notes,
@@ -88,6 +90,7 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense domain.Expense) 
 			converted_currency_code = ?,
 			exchange_rate = ?,
 			category_id = ?,
+			subcategory_id = ?,
 			payment_source_id = ?,
 			merchant = ?,
 			notes = ?,
@@ -101,6 +104,7 @@ func (r *ExpenseRepository) Update(ctx context.Context, expense domain.Expense) 
 		expense.ConvertedCurrencyCode,
 		expense.ExchangeRate.StringFixed(10),
 		expense.CategoryID,
+		subcategoryValue(expense.SubcategoryID),
 		expense.PaymentSourceID,
 		expense.Merchant,
 		expense.Notes,
@@ -173,14 +177,9 @@ func (r *ExpenseRepository) List(ctx context.Context, filter domain.Filter) ([]d
 		where = append(where, "e.expense_date < ?")
 		args = append(args, *filter.DateTo)
 	}
-	if filter.CategoryID != nil {
-		where = append(where, "e.category_id = ?")
-		args = append(args, *filter.CategoryID)
-	}
-	if filter.PaymentSourceID != nil {
-		where = append(where, "e.payment_source_id = ?")
-		args = append(args, *filter.PaymentSourceID)
-	}
+	where, args = appendIDFilter(where, args, "e.category_id", filter.CategoryIDs)
+	where, args = appendIDFilter(where, args, "e.subcategory_id", filter.SubcategoryIDs)
+	where, args = appendIDFilter(where, args, "e.payment_source_id", filter.PaymentSourceIDs)
 	for _, tag := range normalizeTagNames(filter.Tags) {
 		where = append(where, `EXISTS (
 			SELECT 1
@@ -350,6 +349,8 @@ func baseExpenseSelect() string {
 			e.converted_currency_code,
 			e.exchange_rate,
 			e.category_id,
+			e.subcategory_id,
+			COALESCE(sc.name, ''),
 			e.payment_source_id,
 			e.merchant,
 			e.notes,
@@ -359,12 +360,14 @@ func baseExpenseSelect() string {
 			e.created_at,
 			e.updated_at
 		FROM expenses e
+		LEFT JOIN category_subcategories sc ON sc.id = e.subcategory_id
 	`
 }
 
 func scanExpense(row scanner) (*domain.Expense, error) {
 	var expense domain.Expense
 	var exchangeRate string
+	var subcategoryID sql.NullInt64
 	err := row.Scan(
 		&expense.ID,
 		&expense.HouseholdID,
@@ -374,6 +377,8 @@ func scanExpense(row scanner) (*domain.Expense, error) {
 		&expense.ConvertedCurrencyCode,
 		&exchangeRate,
 		&expense.CategoryID,
+		&subcategoryID,
+		&expense.SubcategoryName,
 		&expense.PaymentSourceID,
 		&expense.Merchant,
 		&expense.Notes,
@@ -391,6 +396,10 @@ func scanExpense(row scanner) (*domain.Expense, error) {
 		return nil, err
 	}
 	expense.ExchangeRate = parsed
+	if subcategoryID.Valid && subcategoryID.Int64 > 0 {
+		id := uint64(subcategoryID.Int64)
+		expense.SubcategoryID = &id
+	}
 	return &expense, nil
 }
 
@@ -409,6 +418,26 @@ func scanSummaryRows(rows *sql.Rows) ([]domain.SummaryRow, error) {
 func monthBounds(month time.Time) (time.Time, time.Time) {
 	start := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location())
 	return start, start.AddDate(0, 1, 0)
+}
+
+func subcategoryValue(id *uint64) any {
+	if id == nil || *id == 0 {
+		return nil
+	}
+	return *id
+}
+
+func appendIDFilter(where []string, args []any, column string, ids []uint64) ([]string, []any) {
+	if len(ids) == 0 {
+		return where, args
+	}
+	marks := make([]string, len(ids))
+	for i, id := range ids {
+		marks[i] = "?"
+		args = append(args, id)
+	}
+	where = append(where, column+" IN ("+strings.Join(marks, ",")+")")
+	return where, args
 }
 
 type execQuerier interface {
