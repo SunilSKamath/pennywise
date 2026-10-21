@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarRange, CheckCircle2, Download, FilterX, Search, TrendingDown, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button";
+import { DateField, MonthField } from "../components/DateField";
 import { EmptyState } from "../components/EmptyState";
 import { ExpenseRow } from "../components/ExpenseRow";
 import { MultiSelect } from "../components/MultiSelect";
@@ -127,7 +128,7 @@ export function Expenses() {
           <p className="text-sm font-semibold text-fern">Review</p>
           <h1 className="page-title">Expenses</h1>
         </div>
-        <input className="control h-11 w-[9.5rem] text-sm" type="month" value={month} onChange={(event) => selectMonth(event.target.value)} aria-label="Month" />
+        <MonthField className="h-11 w-[9.5rem] text-sm" value={month} onChange={selectMonth} />
       </header>
 
       <section className="panel overflow-hidden">
@@ -207,8 +208,8 @@ export function Expenses() {
           />
         </label>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <input className="control" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="From date" />
-          <input className="control" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} aria-label="To date" />
+          <DateField label="From date" placeholder="From" value={dateFrom} onChange={setDateFrom} />
+          <DateField label="To date" placeholder="To" value={dateTo} onChange={setDateTo} />
           <MultiSelect
             label="Category"
             placeholder="All categories"

@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "../components/Button";
+import { DateField } from "../components/DateField";
 import { SelectMenu } from "../components/SelectMenu";
 import { TagInput } from "../components/TagInput";
 import { api, type Expense } from "../lib/api";
@@ -189,19 +190,8 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Date" error={errors.expense_date?.message}>
-            <div className="relative h-12 w-full overflow-hidden rounded-xl">
-              <input
-                className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-                type="date"
-                aria-label="Date"
-                {...form.register("expense_date")}
-              />
-              <div className="control flex w-full items-center justify-between gap-3 peer-focus:border-fern peer-focus:ring-4 peer-focus:ring-fern/15">
-                <span className="min-w-0 flex-1 truncate text-center">{formatInputDate(expenseDate)}</span>
-                <CalendarDays className="h-5 w-5 shrink-0 text-stone-400" aria-hidden="true" />
-              </div>
-            </div>
+          <Field as="div" label="Date" error={errors.expense_date?.message}>
+            <DateField value={expenseDate} onChange={(value) => form.setValue("expense_date", value, { shouldValidate: true })} />
           </Field>
           <Field label="Currency" error={errors.original_currency_code?.message}>
             <input className="control w-full uppercase" maxLength={3} {...form.register("original_currency_code")} />
@@ -225,16 +215,6 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
       </form>
     </div>
   );
-}
-
-function formatInputDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return "Choose date";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(year, month - 1, day));
 }
 
 function Field({ as = "label", label, error, children }: { as?: "label" | "div"; label: string; error?: string; children: ReactNode }) {

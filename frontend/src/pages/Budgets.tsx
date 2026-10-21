@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PiggyBank, Plus, Target, Trash2, TrendingDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button";
+import { MonthField } from "../components/DateField";
 import { Skeleton } from "../components/Skeleton";
 import { api } from "../lib/api";
 import { cn, formatMoney, categoryLabel, monthLabel } from "../lib/utils";
@@ -92,7 +93,7 @@ export function Budgets() {
           <p className="text-sm font-semibold text-fern">Limits</p>
           <h1 className="page-title">Budgets</h1>
         </div>
-        <input className="control h-11 w-[9.5rem] text-sm" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+        <MonthField className="h-11 w-[9.5rem] text-sm" value={month} onChange={setMonth} />
       </header>
 
       <section className="panel overflow-hidden">

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { ExpenseRow } from "../components/ExpenseRow";
+import { MonthField } from "../components/DateField";
 import { Skeleton } from "../components/Skeleton";
 import { api } from "../lib/api";
 import { cn, formatMoney, categoryLabel } from "../lib/utils";
@@ -107,12 +108,7 @@ export function Dashboard() {
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <input
-              className="h-11 w-[9.5rem] border-x border-stone-200 bg-transparent px-2 text-center text-sm outline-none dark:border-stone-700"
-              type="month"
-              value={month}
-              onChange={(event) => setMonth(event.target.value)}
-            />
+            <MonthField plain value={month} onChange={setMonth} />
             <button
               className="grid h-11 w-11 place-items-center text-stone-500 transition hover:text-fern disabled:opacity-40"
               aria-label="Next month"
