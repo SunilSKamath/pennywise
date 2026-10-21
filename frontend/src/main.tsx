@@ -61,6 +61,18 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
   }
 }
 
+const pickerInputTypes = new Set(["date", "month", "time", "datetime-local", "week"]);
+
+document.addEventListener("click", (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || !pickerInputTypes.has(input.type) || input.disabled || input.readOnly) return;
+  try {
+    input.showPicker?.();
+  } catch {
+    // showPicker throws when the picker is already open or the browser blocks it.
+  }
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AppErrorBoundary>
