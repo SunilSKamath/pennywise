@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarRange, CheckCircle2, FilterX, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, CalendarRange, CheckCircle2, Download, FilterX, Search, TrendingDown, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
@@ -8,6 +8,8 @@ import { MultiSelect } from "../components/MultiSelect";
 import { Skeleton } from "../components/Skeleton";
 import { TagInput } from "../components/TagInput";
 import { api, type Expense, type ExpenseFilters } from "../lib/api";
+import { expenseCsvFilename, expensesToCsv } from "../lib/csv";
+import { downloadTextFile } from "../lib/download";
 import { categoryLabel, currentMonth, formatMoney, monthBounds, monthLabel } from "../lib/utils";
 
 function previousMonth(value: string) {
@@ -28,6 +30,8 @@ export function Expenses() {
   const [subcategoryIDs, setSubcategoryIDs] = useState<number[]>([]);
   const [paymentSourceIDs, setPaymentSourceIDs] = useState<number[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [downloadError, setDownloadError] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   const filters: ExpenseFilters = {
     search,
@@ -101,6 +105,19 @@ export function Expenses() {
     const label = expense.merchant || "this expense";
     if (!window.confirm(`Delete ${label}?`)) return;
     deleteExpense.mutate(expense.id);
+  };
+
+  const downloadCsv = async () => {
+    setDownloadError("");
+    setDownloading(true);
+    try {
+      const csv = expensesToCsv(rows, categories.data ?? [], paymentSources.data ?? []);
+      await downloadTextFile(expenseCsvFilename(dateFrom, dateTo), csv);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Could not download the CSV.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -241,10 +258,20 @@ export function Expenses() {
         <TagInput value={tags} onChange={setTags} placeholder="Filter by tags" />
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <ReportStat label="Total spend" value={formatMoney(filteredTotal, currency)} loading={expenses.isLoading} />
-        <ReportStat label="Transactions" value={String(rows.length)} loading={expenses.isLoading} />
-        <ReportStat label="Average" value={formatMoney(average, currency)} loading={expenses.isLoading} />
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-extrabold">Filtered results</h2>
+          <Button className="w-full sm:w-auto" variant="secondary" type="button" disabled={expenses.isLoading || downloading || rows.length === 0} onClick={() => void downloadCsv()}>
+            <Download className="h-5 w-5" />
+            Download CSV
+          </Button>
+        </div>
+        {downloadError && <p className="rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{downloadError}</p>}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ReportStat label="Total spend" value={formatMoney(filteredTotal, currency)} loading={expenses.isLoading} />
+          <ReportStat label="Transactions" value={String(rows.length)} loading={expenses.isLoading} />
+          <ReportStat label="Average" value={formatMoney(average, currency)} loading={expenses.isLoading} />
+        </div>
       </section>
 
       {deleteExpense.error && <p className="rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{deleteExpense.error.message}</p>}
