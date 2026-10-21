@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarRange, CheckCircle2, Download, FilterX, Search, TrendingDown, TrendingUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, CalendarRange, CheckCircle2, Download, FileUp, FilterX, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { DateField, MonthField } from "../components/DateField";
 import { EmptyState } from "../components/EmptyState";
@@ -9,9 +9,9 @@ import { MultiSelect } from "../components/MultiSelect";
 import { Skeleton } from "../components/Skeleton";
 import { TagInput } from "../components/TagInput";
 import { api, type Expense, type ExpenseFilters } from "../lib/api";
-import { expenseCsvFilename, expensesToCsv } from "../lib/csv";
-import { downloadTextFile } from "../lib/download";
-import { categoryLabel, currentMonth, formatMoney, monthBounds, monthLabel } from "../lib/utils";
+import { csvImportTag, expenseCsvFilename, expensesFromCsv, expensesToCsv, sampleExpensesCsv } from "../lib/csv";
+import { csvObjectUrl, prefersShareSheet, shareTextFile } from "../lib/download";
+import { categoryLabel, cn, currentMonth, formatMoney, monthBounds, monthLabel, todayInputValue } from "../lib/utils";
 
 function previousMonth(value: string) {
   const [year, month] = value.split("-").map(Number);
@@ -32,7 +32,11 @@ export function Expenses() {
   const [paymentSourceIDs, setPaymentSourceIDs] = useState<number[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [downloadError, setDownloadError] = useState("");
-  const [downloading, setDownloading] = useState(false);
+  const [csvUrl, setCsvUrl] = useState("");
+  const [sampleUrl, setSampleUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importNotice, setImportNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
 
   const filters: ExpenseFilters = {
     search,
@@ -108,16 +112,89 @@ export function Expenses() {
     deleteExpense.mutate(expense.id);
   };
 
-  const downloadCsv = async () => {
-    setDownloadError("");
-    setDownloading(true);
+  const csvFilename = expenseCsvFilename(dateFrom, dateTo);
+  const downloadDisabled = expenses.isLoading || rows.length === 0;
+  const uploadDisabled = importing || categories.isLoading || paymentSources.isLoading;
+
+  useEffect(() => {
+    const url = csvObjectUrl(sampleExpensesCsv(categories.data ?? [], paymentSources.data ?? [], dateFrom || todayInputValue()));
+    setSampleUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [categories.data, paymentSources.data, dateFrom]);
+
+  const uploadCsv = async (file: File) => {
+    setImporting(true);
+    setImportNotice(null);
+    try {
+      const result = expensesFromCsv(await file.text(), categories.data ?? [], paymentSources.data ?? []);
+      if (result.errors.length > 0 || result.payloads.length === 0) {
+        const shown = result.errors.slice(0, 8);
+        const extra = result.errors.length > shown.length ? `\n${result.errors.length - shown.length} more.` : "";
+        setImportNotice({
+          tone: "error",
+          text: shown.length > 0 ? `${shown.join("\n")}${extra}` : "The CSV has no expenses to add."
+        });
+        return;
+      }
+      let added = 0;
+      try {
+        for (const payload of result.payloads) {
+          await api.createExpense(payload);
+          added += 1;
+        }
+      } catch (error) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+          queryClient.invalidateQueries({ queryKey: ["tags"] }),
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+          queryClient.invalidateQueries({ queryKey: ["budgets"] })
+        ]);
+        const message = error instanceof Error ? error.message : "Could not add an expense.";
+        setImportNotice({
+          tone: "error",
+          text: added > 0 ? `Added ${added} expenses, then stopped: ${message} Filter by the csv tag to review them.` : message
+        });
+        return;
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+        queryClient.invalidateQueries({ queryKey: ["tags"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["budgets"] })
+      ]);
+      setImportNotice({
+        tone: "ok",
+        text: `Added ${added} ${added === 1 ? "expense" : "expenses"}. Each one is tagged csv. Use CSV imports to see them.`
+      });
+    } catch (error) {
+      setImportNotice({ tone: "error", text: error instanceof Error ? error.message : "Could not read the CSV." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const armDownload = (anchor: HTMLAnchorElement) => {
     try {
       const csv = expensesToCsv(rows, categories.data ?? [], paymentSources.data ?? []);
-      await downloadTextFile(expenseCsvFilename(dateFrom, dateTo), csv);
+      const url = csvObjectUrl(csv);
+      anchor.href = url;
+      anchor.download = csvFilename;
+      setCsvUrl(url);
+      setDownloadError("");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      anchor.removeAttribute("href");
+      setDownloadError(error instanceof Error ? error.message : "Could not download the CSV.");
+    }
+  };
+
+  const shareCsv = async () => {
+    setDownloadError("");
+    try {
+      const csv = expensesToCsv(rows, categories.data ?? [], paymentSources.data ?? []);
+      await shareTextFile(csvFilename, csv);
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Could not download the CSV.");
-    } finally {
-      setDownloading(false);
     }
   };
 
@@ -241,6 +318,13 @@ export function Expenses() {
           />
           <Button
             variant="secondary"
+            type="button"
+            onClick={() => setTags(tags.length === 1 && tags[0].toLowerCase() === csvImportTag ? [] : [csvImportTag])}
+          >
+            CSV imports
+          </Button>
+          <Button
+            variant="secondary"
             disabled={!hasFilters}
             onClick={() => {
               setSearch("");
@@ -256,17 +340,75 @@ export function Expenses() {
             Clear
           </Button>
         </div>
-        <TagInput value={tags} onChange={setTags} placeholder="Filter by tags" />
+        <TagInput value={tags} onChange={setTags} placeholder="Filter by tags, such as csv" />
       </section>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-extrabold">Filtered results</h2>
-          <Button className="w-full sm:w-auto" variant="secondary" type="button" disabled={expenses.isLoading || downloading || rows.length === 0} onClick={() => void downloadCsv()}>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <a
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-ink transition hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-50"
+              href={sampleUrl || undefined}
+              download="pennywise-sample.csv"
+              onClick={(event) => {
+                if (!sampleUrl) event.preventDefault();
+              }}
+            >
+              <Download className="h-5 w-5" />
+              Sample CSV
+            </a>
+            <Button className="w-full sm:w-auto" variant="secondary" type="button" disabled={uploadDisabled} onClick={() => uploadRef.current?.click()}>
+              <FileUp className="h-5 w-5" />
+              {importing ? "Uploading" : "Upload CSV"}
+            </Button>
+            <input
+              ref={uploadRef}
+              className="hidden"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void uploadCsv(file);
+              }}
+            />
+          <a
+            className={cn(
+              "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-ink transition hover:bg-stone-50 sm:w-auto dark:border-stone-700 dark:bg-stone-900 dark:text-stone-50",
+              downloadDisabled && "pointer-events-none opacity-60"
+            )}
+            href={downloadDisabled ? undefined : csvUrl || undefined}
+            download={csvFilename}
+            onPointerDown={(event) => {
+              if (event.button !== 0 || downloadDisabled) return;
+              armDownload(event.currentTarget);
+            }}
+            onKeyDown={(event) => {
+              if (downloadDisabled || (event.key !== "Enter" && event.key !== " ")) return;
+              armDownload(event.currentTarget);
+            }}
+            onClick={(event) => {
+              if (downloadDisabled || !event.currentTarget.hasAttribute("href")) {
+                event.preventDefault();
+                return;
+              }
+              if (!prefersShareSheet()) return;
+              event.preventDefault();
+              void shareCsv();
+            }}
+          >
             <Download className="h-5 w-5" />
             Download CSV
-          </Button>
+          </a>
+          </div>
         </div>
+        <p className="text-sm text-stone-500 dark:text-stone-400">Upload adds new expenses and tags each one csv. It does not change or delete existing expenses.</p>
+        {importNotice && (
+          <p className={cn("whitespace-pre-line rounded-xl p-3 text-sm font-semibold", importNotice.tone === "ok" ? "bg-fern/10 text-fern" : "bg-coral/10 text-coral")}>
+            {importNotice.text}
+          </p>
+        )}
         {downloadError && <p className="rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{downloadError}</p>}
         <div className="grid gap-3 sm:grid-cols-3">
           <ReportStat label="Total spend" value={formatMoney(filteredTotal, currency)} loading={expenses.isLoading} />
