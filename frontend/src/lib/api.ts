@@ -85,6 +85,8 @@ export type Budget = {
   id: number;
   household_id: number;
   category_id: number;
+  subcategory_id: number | null;
+  subcategory_name?: string;
   month: string;
   amount_minor: number;
   currency_code: string;
@@ -95,6 +97,7 @@ export type Budget = {
 
 export type UpsertBudgetPayload = {
   category_id: number;
+  subcategory_id?: number | null;
   month: string;
   amount_minor: number;
   currency_code: string;

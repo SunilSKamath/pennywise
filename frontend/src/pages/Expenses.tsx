@@ -92,7 +92,7 @@ export function Expenses() {
   const overBudgets = (budgets.data ?? []).filter((budget) => budget.spent_minor > budget.amount_minor);
   const insight = useMemo(() => {
     if (monthTotal === 0) return "No expenses recorded for this month yet.";
-    if (overBudgets.length > 0) return `${overBudgets.length} budget ${overBudgets.length === 1 ? "category is" : "categories are"} over limit.`;
+    if (overBudgets.length > 0) return `${overBudgets.length} ${overBudgets.length === 1 ? "budget is" : "budgets are"} over limit.`;
     if (delta !== null && delta < 0) return "Spending is lower than last month.";
     return "Spending is within the tracked budget categories.";
   }, [monthTotal, overBudgets.length, delta]);
@@ -238,7 +238,7 @@ export function Expenses() {
         <article className="panel p-4">
           <AlertTriangle className="h-5 w-5 text-coral" />
           <h2 className="mt-3 text-lg font-extrabold">Budget exceptions</h2>
-          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{overBudgets.length} categories need attention.</p>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{overBudgets.length} budgets need attention.</p>
         </article>
         <article className="panel p-4">
           <TrendingUp className="h-5 w-5 text-fern" />
@@ -259,7 +259,7 @@ export function Expenses() {
           <div className="space-y-4">
             {(dashboard.data?.by_category ?? []).map((row) => {
               const category = categories.data?.find((item) => item.id === row.id);
-              const budget = budgets.data?.find((item) => item.category_id === row.id);
+              const budget = budgets.data?.find((item) => item.category_id === row.id && item.subcategory_id == null);
               const max = budget?.amount_minor ?? monthTotal;
               const percent = max > 0 ? Math.min(100, (row.amount_minor / max) * 100) : 0;
               const over = budget ? row.amount_minor > budget.amount_minor : false;

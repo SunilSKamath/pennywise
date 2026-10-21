@@ -725,22 +725,24 @@ func listBudgets(service *applicationbudget.Service) fiber.Handler {
 
 func upsertBudget(service *applicationbudget.Service) fiber.Handler {
 	type request struct {
-		CategoryID   uint64 `json:"category_id"`
-		Month        string `json:"month"`
-		AmountMinor  int64  `json:"amount_minor"`
-		CurrencyCode string `json:"currency_code"`
+		CategoryID    uint64  `json:"category_id"`
+		SubcategoryID *uint64 `json:"subcategory_id"`
+		Month         string  `json:"month"`
+		AmountMinor   int64   `json:"amount_minor"`
+		CurrencyCode  string  `json:"currency_code"`
 	}
 	return func(c fiber.Ctx) error {
 		var req request
-		if err := c.Bind().Body(&req); err != nil {
+		if err := json.Unmarshal(c.Body(), &req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		budget, err := service.Upsert(context.Background(), applicationbudget.UpsertInput{
-			HouseholdID:  currentHouseholdID(c),
-			CategoryID:   req.CategoryID,
-			Month:        req.Month,
-			AmountMinor:  req.AmountMinor,
-			CurrencyCode: req.CurrencyCode,
+			HouseholdID:   currentHouseholdID(c),
+			CategoryID:    req.CategoryID,
+			SubcategoryID: req.SubcategoryID,
+			Month:         req.Month,
+			AmountMinor:   req.AmountMinor,
+			CurrencyCode:  req.CurrencyCode,
 		})
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())

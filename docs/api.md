@@ -263,6 +263,7 @@ Creates a payment source. Returns `201`.
   "id": 1,
   "household_id": 1,
   "category_id": 1,
+  "subcategory_id": null,
   "month": "2026-09",
   "amount_minor": 500000,
   "currency_code": "INR",
@@ -272,7 +273,7 @@ Creates a payment source. Returns `201`.
 }
 ```
 
-`spent_minor` is present on list responses. `month` is `YYYY-MM`.
+`spent_minor` is present on list responses. `month` is `YYYY-MM`. `subcategory_id` is `null` for a category budget. A subcategory budget includes `subcategory_id` and `subcategory_name`, and `spent_minor` counts only that subcategory.
 
 ### `GET /api/v1/budgets?month=YYYY-MM`
 
@@ -280,18 +281,19 @@ Returns budgets for the selected household and month, including `spent_minor`.
 
 ### `PUT /api/v1/budgets`
 
-Creates or replaces the budget for that household, category, and month.
+Creates or replaces the budget for that household, category or subcategory, and month.
 
 ```json
 {
   "category_id": 1,
+  "subcategory_id": 3,
   "month": "2026-09",
   "amount_minor": 500000,
   "currency_code": "INR"
 }
 ```
 
-`amount_minor` must be greater than zero. `currency_code` must be three letters.
+Omit `subcategory_id`, or send `null`, to budget the whole category. When it is set, it must be an active subcategory of `category_id`. `amount_minor` must be greater than zero. `currency_code` must be three letters. A category budget and subcategory budgets for the same category can both exist.
 
 ### `DELETE /api/v1/budgets/:id`
 

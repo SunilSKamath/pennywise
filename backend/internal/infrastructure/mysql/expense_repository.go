@@ -318,6 +318,23 @@ func (r *ExpenseRepository) SummaryByCategory(ctx context.Context, month time.Ti
 	return scanSummaryRows(rows)
 }
 
+func (r *ExpenseRepository) SummaryBySubcategory(ctx context.Context, month time.Time, householdID uint64) ([]domain.SummaryRow, error) {
+	start, end := monthBounds(month)
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT sc.id, sc.name, SUM(e.converted_amount_minor), COUNT(*), MAX(e.converted_currency_code)
+		FROM expenses e
+		JOIN category_subcategories sc ON sc.id = e.subcategory_id
+		WHERE e.deleted_at IS NULL AND e.household_id = ? AND e.expense_date >= ? AND e.expense_date < ?
+		GROUP BY sc.id, sc.name
+		ORDER BY SUM(e.converted_amount_minor) DESC
+	`, householdID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanSummaryRows(rows)
+}
+
 func (r *ExpenseRepository) SummaryByPaymentSource(ctx context.Context, month time.Time, householdID uint64) ([]domain.SummaryRow, error) {
 	start, end := monthBounds(month)
 	rows, err := r.db.QueryContext(ctx, `

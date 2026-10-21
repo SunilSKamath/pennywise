@@ -3,14 +3,16 @@ package budget
 import "time"
 
 type Budget struct {
-	ID           uint64    `json:"id"`
-	HouseholdID  uint64    `json:"household_id"`
-	CategoryID   uint64    `json:"category_id"`
-	Month        string    `json:"month"`
-	AmountMinor  int64     `json:"amount_minor"`
-	CurrencyCode string    `json:"currency_code"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID              uint64    `json:"id"`
+	HouseholdID     uint64    `json:"household_id"`
+	CategoryID      uint64    `json:"category_id"`
+	SubcategoryID   *uint64   `json:"subcategory_id"`
+	SubcategoryName string    `json:"subcategory_name,omitempty"`
+	Month           string    `json:"month"`
+	AmountMinor     int64     `json:"amount_minor"`
+	CurrencyCode    string    `json:"currency_code"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type WithProgress struct {
