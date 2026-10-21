@@ -1,14 +1,57 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut, Plus, ShieldCheck, Users, WalletCards } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/Button";
 import { SubcategoryManager } from "../components/SubcategoryManager";
-import { api, type PaymentSource, type User } from "../lib/api";
+import { api, type Category, type PaymentSource, type User } from "../lib/api";
 import { usePreferences } from "../lib/store";
-import { categoryLabel } from "../lib/utils";
 
 const currencies = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
+
+function CategoryEmojiEditor({ category }: { category: Category }) {
+  const queryClient = useQueryClient();
+  const [emoji, setEmoji] = useState(category.emoji || "📦");
+
+  useEffect(() => {
+    setEmoji(category.emoji || "📦");
+  }, [category.emoji]);
+
+  const updateEmoji = useMutation({
+    mutationFn: (next: string) => api.updateCategoryEmoji(category.id, next),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["categories"] });
+    }
+  });
+
+  const save = () => {
+    const next = emoji.trim() || "📦";
+    setEmoji(next);
+    if (next === (category.emoji || "📦")) return;
+    updateEmoji.mutate(next);
+  };
+
+  return (
+    <label className="inline-flex items-center gap-2 rounded-full bg-oat py-1 pl-1 pr-3 dark:bg-stone-800">
+      <input
+        className="h-9 w-12 rounded-full bg-white text-center text-lg outline-none dark:bg-stone-950"
+        value={emoji}
+        maxLength={8}
+        aria-label={`Emoji for ${category.name}`}
+        onChange={(event) => setEmoji(event.target.value)}
+        onBlur={save}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <span className="text-sm font-semibold">{category.name}</span>
+      {updateEmoji.error && <span className="text-xs font-semibold text-coral">{updateEmoji.error.message}</span>}
+    </label>
+  );
+}
 
 export function Settings({ user }: { user: User }) {
   const queryClient = useQueryClient();
@@ -109,7 +152,7 @@ export function Settings({ user }: { user: User }) {
           </form>
           <div className="mt-4 flex flex-wrap gap-2">
             {(categories.data ?? []).map((category) => (
-              <span key={category.id} className="rounded-full bg-oat px-3 py-2 text-sm font-semibold dark:bg-stone-800">{categoryLabel(category)}</span>
+              <CategoryEmojiEditor key={category.id} category={category} />
             ))}
           </div>
         </div>

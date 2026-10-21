@@ -198,6 +198,16 @@ Creates a category. Returns `201`.
 
 `name` is required. An empty `emoji` is stored as `📦`.
 
+### `PATCH /api/v1/categories/:id`
+
+Updates the category emoji. Returns the category.
+
+```json
+{ "emoji": "🍔" }
+```
+
+An empty `emoji` is stored as `📦`. The value can be at most 8 characters.
+
 ### `POST /api/v1/categories/:id/subcategories`
 
 Adds a subcategory child of that category. Returns `201`.

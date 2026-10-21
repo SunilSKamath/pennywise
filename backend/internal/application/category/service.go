@@ -34,6 +34,23 @@ func (s *Service) Create(ctx context.Context, name, emoji string) (*domain.Categ
 	return category, nil
 }
 
+func (s *Service) UpdateEmoji(ctx context.Context, id uint64, emoji string) (*domain.Category, error) {
+	emoji = strings.TrimSpace(emoji)
+	if emoji == "" {
+		emoji = "📦"
+	}
+	if len([]rune(emoji)) > 8 {
+		return nil, errors.New("emoji is too long")
+	}
+	if err := s.repo.UpdateEmoji(ctx, id, emoji); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("category not found")
+		}
+		return nil, err
+	}
+	return s.repo.GetByID(ctx, id)
+}
+
 func (s *Service) List(ctx context.Context) ([]domain.Category, error) {
 	return s.repo.List(ctx)
 }

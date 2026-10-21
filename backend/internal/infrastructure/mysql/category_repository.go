@@ -33,6 +33,23 @@ func (r *CategoryRepository) Create(ctx context.Context, category *domain.Catego
 	return nil
 }
 
+func (r *CategoryRepository) UpdateEmoji(ctx context.Context, id uint64, emoji string) error {
+	result, err := r.db.ExecContext(ctx, `
+		UPDATE categories SET emoji = ? WHERE id = ? AND deleted_at IS NULL
+	`, emoji, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *CategoryRepository) GetByID(ctx context.Context, id uint64) (*domain.Category, error) {
 	var category domain.Category
 	err := r.db.QueryRowContext(ctx, `

@@ -77,6 +77,7 @@ func NewRouter(services Services) *fiber.App {
 	protected := api.Group("", activeUser())
 	protected.Get("/categories", listCategories(services.Categories))
 	protected.Post("/categories", createCategory(services.Categories))
+	protected.Patch("/categories/:id", updateCategoryEmoji(services.Categories))
 	protected.Post("/categories/:id/subcategories", createSubcategory(services.Categories))
 	protected.Delete("/categories/:id/subcategories/:subcategoryId", deleteSubcategory(services.Categories))
 	protected.Get("/payment-sources", listPaymentSources(services.PaymentSources))
@@ -460,6 +461,30 @@ func createCategory(service *applicationcategory.Service) fiber.Handler {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		return c.Status(fiber.StatusCreated).JSON(category)
+	}
+}
+
+func updateCategoryEmoji(service *applicationcategory.Service) fiber.Handler {
+	type request struct {
+		Emoji string `json:"emoji"`
+	}
+	return func(c fiber.Ctx) error {
+		id, err := pathID(c)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		var req request
+		if err := json.Unmarshal(c.Body(), &req); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		category, err := service.UpdateEmoji(context.Background(), id, req.Emoji)
+		if err != nil {
+			if err.Error() == "category not found" {
+				return fiber.NewError(fiber.StatusNotFound, err.Error())
+			}
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		return c.JSON(category)
 	}
 }
 

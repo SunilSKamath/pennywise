@@ -210,6 +210,8 @@ export const api = {
   categories: () => request<Category[]>("/categories"),
   createCategory: (name: string, emoji = "📦") =>
     request<Category>("/categories", { method: "POST", body: JSON.stringify({ name, emoji }) }),
+  updateCategoryEmoji: (id: number, emoji: string) =>
+    request<Category>(`/categories/${id}`, { method: "PATCH", body: JSON.stringify({ emoji }) }),
   paymentSources: () => request<PaymentSource[]>("/payment-sources"),
   createPaymentSource: (payload: Omit<PaymentSource, "id">) =>
     request<PaymentSource>("/payment-sources", { method: "POST", body: JSON.stringify(payload) }),
