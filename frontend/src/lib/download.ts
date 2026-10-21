@@ -25,12 +25,18 @@ function triggerAnchorDownload(filename: string, blob: Blob) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
-  anchor.rel = "noopener";
-  anchor.style.display = "none";
+  // Keep the link in the page and out of the way. display:none, and removing
+  // the link in the same turn as the click, makes Chrome and Safari ignore it.
+  anchor.style.position = "fixed";
+  anchor.style.left = "0";
+  anchor.style.top = "0";
+  anchor.style.opacity = "0";
   document.body.appendChild(anchor);
   anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+  window.setTimeout(() => {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, 2000);
 }
 
 // Installed phone apps, especially on iOS, ignore a normal file download.
@@ -38,7 +44,7 @@ function triggerAnchorDownload(filename: string, blob: Blob) {
 // saved. Desktop and mobile browsers download the file directly.
 export function downloadTextFile(filename: string, contents: string, mimeType = "text/csv") {
   const payload = mimeType === "text/csv" ? `\uFEFF${contents}` : contents;
-  const blob = new Blob([payload], { type: `${mimeType};charset=utf-8` });
+  const blob = new Blob([payload], { type: "application/octet-stream" });
   const file = isAppleTouchDevice() || isInstalledApp() ? shareableFile(filename, blob) : null;
 
   if (file) {

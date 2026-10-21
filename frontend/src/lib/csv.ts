@@ -21,8 +21,9 @@ function csvField(value: string) {
   return value;
 }
 
-function csvText(value: string) {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+function csvText(value: string | null | undefined) {
+  const text = value ?? "";
+  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return csvField(safe);
 }
 
@@ -45,7 +46,7 @@ export function expensesToCsv(expenses: Expense[], categories: Category[], payme
       amount(expense.converted_amount_minor),
       csvField(expense.converted_currency_code),
       csvText(expense.notes),
-      csvText(expense.tags.join("; "))
+      csvText((expense.tags ?? []).join("; "))
     ].join(",")
   );
   return [headers.join(","), ...lines].join("\r\n");
