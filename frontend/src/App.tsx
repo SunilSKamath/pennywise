@@ -7,6 +7,7 @@ import { api } from "./lib/api";
 import { usePreferences } from "./lib/store";
 import { AddExpense } from "./pages/AddExpense";
 import { Budgets } from "./pages/Budgets";
+import { YearlyBudgets } from "./pages/YearlyBudgets";
 import { Dashboard } from "./pages/Dashboard";
 import { EditExpense } from "./pages/EditExpense";
 import { Expenses } from "./pages/Expenses";
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/month-review" element={<Navigate to="/expenses" replace />} />
         <Route path="/savings" element={<Navigate to="/budgets" replace />} />
         <Route path="/budgets" element={<Budgets />} />
+        <Route path="/yearly-budgets" element={<YearlyBudgets />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/expenses/:id/edit" element={<EditExpense />} />
         <Route path="/add" element={<AddExpense />} />

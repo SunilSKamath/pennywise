@@ -128,3 +128,76 @@ func (s *Service) normalizeSubcategory(ctx context.Context, categoryID uint64, s
 	id := subcategory.ID
 	return &id, subcategory.Name, nil
 }
+
+type YearlyUpsertInput struct {
+	HouseholdID  uint64
+	CategoryID   uint64
+	Year         string
+	AmountMinor  int64
+	CurrencyCode string
+}
+
+func (s *Service) UpsertYearly(ctx context.Context, input YearlyUpsertInput) (*domain.YearlyBudget, error) {
+	year := strings.TrimSpace(input.Year)
+	if _, err := time.Parse("2006", year); err != nil {
+		return nil, errors.New("year must use YYYY")
+	}
+	if input.AmountMinor <= 0 {
+		return nil, errors.New("budget amount must be greater than zero")
+	}
+	category, err := s.categories.GetByID(ctx, input.CategoryID)
+	if err != nil {
+		return nil, errors.New("category not found")
+	}
+	if !category.YearlyBudgetEnabled {
+		return nil, errors.New("yearly budget is not enabled for this category")
+	}
+	currency := strings.ToUpper(strings.TrimSpace(input.CurrencyCode))
+	if len(currency) != 3 {
+		return nil, errors.New("currency code must be 3 letters")
+	}
+	budget := &domain.YearlyBudget{
+		HouseholdID:  input.HouseholdID,
+		CategoryID:   input.CategoryID,
+		Year:         year,
+		AmountMinor:  input.AmountMinor,
+		CurrencyCode: currency,
+	}
+	if err := s.budgets.UpsertYearly(ctx, budget); err != nil {
+		return nil, err
+	}
+	return budget, nil
+}
+
+func (s *Service) DeleteYearly(ctx context.Context, id uint64, householdID uint64) error {
+	return s.budgets.DeleteYearly(ctx, id, householdID)
+}
+
+func (s *Service) ListYearly(ctx context.Context, householdID uint64, year string) ([]domain.YearlyWithProgress, error) {
+	year = strings.TrimSpace(year)
+	parsed, err := time.Parse("2006", year)
+	if err != nil {
+		return nil, errors.New("year must use YYYY")
+	}
+	budgets, err := s.budgets.ListYearly(ctx, householdID, year)
+	if err != nil {
+		return nil, err
+	}
+	start := time.Date(parsed.Year(), time.January, 1, 0, 0, 0, 0, time.UTC)
+	spentRows, err := s.expenses.SummaryByCategoryBetween(ctx, start, start.AddDate(1, 0, 0), householdID)
+	if err != nil {
+		return nil, err
+	}
+	spent := map[uint64]int64{}
+	for _, row := range spentRows {
+		spent[row.ID] = row.AmountMinor
+	}
+	result := make([]domain.YearlyWithProgress, 0, len(budgets))
+	for _, budget := range budgets {
+		result = append(result, domain.YearlyWithProgress{
+			YearlyBudget: budget,
+			SpentMinor:   spent[budget.CategoryID],
+		})
+	}
+	return result, nil
+}

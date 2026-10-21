@@ -92,6 +92,9 @@ func NewRouter(services Services) *fiber.App {
 	protected.Get("/budgets", listBudgets(services.Budgets))
 	protected.Put("/budgets", upsertBudget(services.Budgets))
 	protected.Delete("/budgets/:id", deleteBudget(services.Budgets))
+	protected.Get("/yearly-budgets", listYearlyBudgets(services.Budgets))
+	protected.Put("/yearly-budgets", upsertYearlyBudget(services.Budgets))
+	protected.Delete("/yearly-budgets/:id", deleteYearlyBudget(services.Budgets))
 
 	admin := protected.Group("/admin", adminOnly())
 	admin.Get("/users", listUsers(services.Users))
@@ -99,6 +102,7 @@ func NewRouter(services Services) *fiber.App {
 	admin.Patch("/users/:id/households", updateUserHouseholds(services.Users))
 	admin.Get("/households", listHouseholds(services.Users))
 	admin.Post("/households", createHousehold(services.Users))
+	admin.Patch("/categories/:id/yearly-budget", setCategoryYearlyBudget(services.Categories))
 
 	app.Use("/api", missingBackendRoute())
 	app.Use("/auth", missingBackendRoute())
@@ -786,6 +790,86 @@ func deleteBudget(service *applicationbudget.Service) fiber.Handler {
 			return err
 		}
 		return c.SendStatus(fiber.StatusNoContent)
+	}
+}
+
+func listYearlyBudgets(service *applicationbudget.Service) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		year := time.Now().Format("2006")
+		if value := c.Query("year"); value != "" {
+			if _, err := time.Parse("2006", value); err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, "year must use YYYY")
+			}
+			year = value
+		}
+		budgets, err := service.ListYearly(context.Background(), currentHouseholdID(c), year)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		return c.JSON(budgets)
+	}
+}
+
+func upsertYearlyBudget(service *applicationbudget.Service) fiber.Handler {
+	type request struct {
+		CategoryID   uint64 `json:"category_id"`
+		Year         string `json:"year"`
+		AmountMinor  int64  `json:"amount_minor"`
+		CurrencyCode string `json:"currency_code"`
+	}
+	return func(c fiber.Ctx) error {
+		var req request
+		if err := json.Unmarshal(c.Body(), &req); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		budget, err := service.UpsertYearly(context.Background(), applicationbudget.YearlyUpsertInput{
+			HouseholdID:  currentHouseholdID(c),
+			CategoryID:   req.CategoryID,
+			Year:         req.Year,
+			AmountMinor:  req.AmountMinor,
+			CurrencyCode: req.CurrencyCode,
+		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		return c.JSON(budget)
+	}
+}
+
+func deleteYearlyBudget(service *applicationbudget.Service) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		id, err := pathID(c)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		if err := service.DeleteYearly(context.Background(), id, currentHouseholdID(c)); err != nil {
+			return err
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+}
+
+func setCategoryYearlyBudget(service *applicationcategory.Service) fiber.Handler {
+	type request struct {
+		Enabled bool `json:"enabled"`
+	}
+	return func(c fiber.Ctx) error {
+		id, err := pathID(c)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		var req request
+		if err := json.Unmarshal(c.Body(), &req); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		category, err := service.SetYearlyBudgetEnabled(context.Background(), id, req.Enabled)
+		if err != nil {
+			if err.Error() == "category not found" {
+				return fiber.NewError(fiber.StatusNotFound, err.Error())
+			}
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		return c.JSON(category)
 	}
 }
 

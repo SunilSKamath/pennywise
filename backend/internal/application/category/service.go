@@ -51,6 +51,16 @@ func (s *Service) UpdateEmoji(ctx context.Context, id uint64, emoji string) (*do
 	return s.repo.GetByID(ctx, id)
 }
 
+func (s *Service) SetYearlyBudgetEnabled(ctx context.Context, id uint64, enabled bool) (*domain.Category, error) {
+	if err := s.repo.SetYearlyBudgetEnabled(ctx, id, enabled); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("category not found")
+		}
+		return nil, err
+	}
+	return s.repo.GetByID(ctx, id)
+}
+
 func (s *Service) List(ctx context.Context) ([]domain.Category, error) {
 	return s.repo.List(ctx)
 }

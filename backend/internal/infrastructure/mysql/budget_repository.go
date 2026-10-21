@@ -135,3 +135,87 @@ func scanBudget(row budgetScanner) (*domain.Budget, error) {
 	}
 	return &budget, nil
 }
+
+func (r *BudgetRepository) UpsertYearly(ctx context.Context, budget *domain.YearlyBudget) error {
+	result, err := r.db.ExecContext(ctx, `
+		INSERT INTO yearly_budgets (household_id, category_id, year, amount_minor, currency_code)
+		VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			amount_minor = VALUES(amount_minor),
+			currency_code = VALUES(currency_code),
+			deleted_at = NULL,
+			updated_at = CURRENT_TIMESTAMP
+	`, budget.HouseholdID, budget.CategoryID, budget.Year, budget.AmountMinor, budget.CurrencyCode)
+	if err != nil {
+		return err
+	}
+	if budget.ID == 0 {
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if id > 0 {
+			budget.ID = uint64(id)
+		}
+	}
+	if budget.ID == 0 {
+		existing, err := r.getYearly(ctx, budget.HouseholdID, budget.CategoryID, budget.Year)
+		if err != nil {
+			return err
+		}
+		budget.ID = existing.ID
+		budget.CreatedAt = existing.CreatedAt
+		budget.UpdatedAt = existing.UpdatedAt
+	}
+	return nil
+}
+
+func (r *BudgetRepository) getYearly(ctx context.Context, householdID, categoryID uint64, year string) (*domain.YearlyBudget, error) {
+	var budget domain.YearlyBudget
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, household_id, category_id, year, amount_minor, currency_code, created_at, updated_at
+		FROM yearly_budgets
+		WHERE household_id = ? AND category_id = ? AND year = ? AND deleted_at IS NULL
+	`, householdID, categoryID, year).Scan(
+		&budget.ID, &budget.HouseholdID, &budget.CategoryID, &budget.Year,
+		&budget.AmountMinor, &budget.CurrencyCode, &budget.CreatedAt, &budget.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &budget, nil
+}
+
+func (r *BudgetRepository) DeleteYearly(ctx context.Context, id uint64, householdID uint64) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE yearly_budgets SET deleted_at = CURRENT_TIMESTAMP
+		WHERE id = ? AND household_id = ? AND deleted_at IS NULL
+	`, id, householdID)
+	return err
+}
+
+func (r *BudgetRepository) ListYearly(ctx context.Context, householdID uint64, year string) ([]domain.YearlyBudget, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, household_id, category_id, year, amount_minor, currency_code, created_at, updated_at
+		FROM yearly_budgets
+		WHERE household_id = ? AND year = ? AND deleted_at IS NULL
+		ORDER BY category_id
+	`, householdID, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	budgets := []domain.YearlyBudget{}
+	for rows.Next() {
+		var budget domain.YearlyBudget
+		if err := rows.Scan(
+			&budget.ID, &budget.HouseholdID, &budget.CategoryID, &budget.Year,
+			&budget.AmountMinor, &budget.CurrencyCode, &budget.CreatedAt, &budget.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		budgets = append(budgets, budget)
+	}
+	return budgets, rows.Err()
+}

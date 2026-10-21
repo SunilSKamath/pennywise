@@ -11,6 +11,7 @@ export type Category = {
   id: number;
   name: string;
   emoji: string;
+  yearly_budget_enabled: boolean;
   subcategories: Subcategory[];
 };
 
@@ -99,6 +100,25 @@ export type UpsertBudgetPayload = {
   category_id: number;
   subcategory_id?: number | null;
   month: string;
+  amount_minor: number;
+  currency_code: string;
+};
+
+export type YearlyBudget = {
+  id: number;
+  household_id: number;
+  category_id: number;
+  year: string;
+  amount_minor: number;
+  currency_code: string;
+  spent_minor: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UpsertYearlyBudgetPayload = {
+  category_id: number;
+  year: string;
   amount_minor: number;
   currency_code: string;
 };
@@ -207,6 +227,12 @@ export const api = {
   upsertBudget: (payload: UpsertBudgetPayload) =>
     request<Budget>("/budgets", { method: "PUT", body: JSON.stringify(payload) }),
   deleteBudget: (id: number) => request<void>(`/budgets/${id}`, { method: "DELETE" }),
+  yearlyBudgets: (year: string) => request<YearlyBudget[]>(`/yearly-budgets?year=${year}`),
+  upsertYearlyBudget: (payload: UpsertYearlyBudgetPayload) =>
+    request<YearlyBudget>("/yearly-budgets", { method: "PUT", body: JSON.stringify(payload) }),
+  deleteYearlyBudget: (id: number) => request<void>(`/yearly-budgets/${id}`, { method: "DELETE" }),
+  setCategoryYearlyBudget: (id: number, enabled: boolean) =>
+    request<Category>(`/admin/categories/${id}/yearly-budget`, { method: "PATCH", body: JSON.stringify({ enabled }) }),
   categories: () => request<Category[]>("/categories"),
   createCategory: (name: string, emoji = "📦") =>
     request<Category>("/categories", { method: "POST", body: JSON.stringify({ name, emoji }) }),

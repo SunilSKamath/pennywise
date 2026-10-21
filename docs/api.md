@@ -178,6 +178,7 @@ Returns up to 500 tags still used by an expense in the selected household. A tag
   "id": 1,
   "name": "Food",
   "emoji": "🍽️",
+  "yearly_budget_enabled": false,
   "subcategories": [
     { "id": 3, "name": "Order food" }
   ]
@@ -207,6 +208,18 @@ Updates the category emoji. Returns the category.
 ```
 
 An empty `emoji` is stored as `📦`. The value can be at most 8 characters.
+
+`yearly_budget_enabled` is set by an admin. When it is false, households cannot create or edit a yearly budget for that category. Saved yearly budgets stay visible.
+
+### `PATCH /api/v1/admin/categories/:id/yearly-budget`
+
+Admin only. Turns yearly budgets on or off for a category.
+
+```json
+{ "enabled": true }
+```
+
+Returns the category.
 
 ### `POST /api/v1/categories/:id/subcategories`
 
@@ -308,6 +321,47 @@ Omit `subcategory_id`, or send `null`, to budget the whole category. When it is 
 ### `DELETE /api/v1/budgets/:id`
 
 Deletes the budget in the selected household. Returns `204`.
+
+## Yearly budgets
+
+A yearly budget is for one category and one calendar year. It is separate from monthly budgets. Spending is every expense in that category from 1 January through 31 December, in the selected household.
+
+```json
+{
+  "id": 1,
+  "household_id": 1,
+  "category_id": 4,
+  "year": "2026",
+  "amount_minor": 12000000,
+  "currency_code": "INR",
+  "spent_minor": 250000,
+  "created_at": "2026-01-01T12:00:00Z",
+  "updated_at": "2026-01-01T12:00:00Z"
+}
+```
+
+### `GET /api/v1/yearly-budgets?year=YYYY`
+
+Lists yearly budgets for the selected household. `year` defaults to the current calendar year.
+
+### `PUT /api/v1/yearly-budgets`
+
+Creates or replaces the yearly budget. The category must have yearly budgets enabled.
+
+```json
+{
+  "category_id": 4,
+  "year": "2026",
+  "amount_minor": 12000000,
+  "currency_code": "INR"
+}
+```
+
+`year` is `YYYY`. `amount_minor` must be greater than zero. `currency_code` must be three letters.
+
+### `DELETE /api/v1/yearly-budgets/:id`
+
+Deletes the yearly budget in the selected household. Returns `204`. A household can delete a saved yearly budget after an admin turns the category off.
 
 ## Admin
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PiggyBank, Plus, Target, Trash2, TrendingDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Pencil, PiggyBank, Plus, Target, Trash2, TrendingDown, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../components/Button";
 import { MonthField } from "../components/DateField";
 import { SelectMenu } from "../components/SelectMenu";
@@ -70,6 +70,7 @@ export function Budgets() {
   const [scope, setScope] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("INR");
+  const [editing, setEditing] = useState<Budget | null>(null);
 
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const budgets = useQuery({ queryKey: ["budgets", month], queryFn: () => api.budgets(month) });
@@ -94,6 +95,7 @@ export function Budgets() {
   const upsertBudget = useMutation({
     mutationFn: api.upsertBudget,
     onSuccess: async () => {
+      setEditing(null);
       setScope("");
       setAmount("");
       await Promise.all([
@@ -115,6 +117,25 @@ export function Budgets() {
   const remaining = totalBudget - totalSpent;
   const savingsRate = totalBudget > 0 ? Math.max(0, (remaining / totalBudget) * 100) : 0;
   const displayCurrency = budgets.data?.[0]?.currency_code ?? dashboard.data?.by_category[0]?.currency_code ?? currency;
+
+  useEffect(() => {
+    setEditing(null);
+    setScope("");
+    setAmount("");
+  }, [month]);
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setScope("");
+    setAmount("");
+  };
+
+  const startEdit = (budget: Budget) => {
+    setEditing(budget);
+    setScope(budget.subcategory_id ? `s:${budget.subcategory_id}` : `c:${budget.category_id}`);
+    setAmount((budget.amount_minor / 100).toFixed(2));
+    setCurrency(budget.currency_code);
+  };
 
   return (
     <div className="space-y-6">
@@ -188,15 +209,19 @@ export function Budgets() {
       </section>
 
       <section className="panel space-y-4 p-4 sm:p-5">
-        <h2 className="text-lg font-extrabold">Set a budget</h2>
+        <h2 className="text-lg font-extrabold">{editing ? "Edit budget" : "Set a budget"}</h2>
         <div className="grid gap-3 sm:grid-cols-3">
-          <SelectMenu
-            label="Budget for"
-            placeholder="Category or subcategory"
-            options={scopeOptions}
-            value={scope}
-            onChange={setScope}
-          />
+          {editing ? (
+            <p className="control flex items-center font-semibold">{budgetTitle(editing, categories.data ?? [])}</p>
+          ) : (
+            <SelectMenu
+              label="Budget for"
+              placeholder="Category or subcategory"
+              options={scopeOptions}
+              value={scope}
+              onChange={setScope}
+            />
+          )}
           <input className="control" inputMode="decimal" placeholder="Monthly limit" value={amount} onChange={(event) => setAmount(event.target.value)} />
           <SelectMenu
             label="Currency"
@@ -206,28 +231,46 @@ export function Budgets() {
             onChange={setCurrency}
           />
         </div>
-        <Button
-          disabled={upsertBudget.isPending || !scope || !amount}
-          onClick={() => {
-            const categoryMatch = /^c:(\d+)$/.exec(scope);
-            const subcategoryMatch = /^s:(\d+)$/.exec(scope);
-            const subcategoryID = subcategoryMatch ? Number(subcategoryMatch[1]) : undefined;
-            const category = categoryMatch
-              ? categories.data?.find((item) => item.id === Number(categoryMatch[1]))
-              : categories.data?.find((item) => activeSubcategories(item).some((subcategory) => subcategory.id === subcategoryID));
-            if (!category) return;
-            upsertBudget.mutate({
-              category_id: category.id,
-              ...(subcategoryID ? { subcategory_id: subcategoryID } : {}),
-              month,
-              amount_minor: Math.round(Number(amount) * 100),
-              currency_code: currency
-            });
-          }}
-        >
-          <Plus className="h-5 w-5" />
-          {upsertBudget.isPending ? "Saving" : "Save budget"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={upsertBudget.isPending || (!editing && !scope) || !amount}
+            onClick={() => {
+              if (editing) {
+                upsertBudget.mutate({
+                  category_id: editing.category_id,
+                  ...(editing.subcategory_id ? { subcategory_id: editing.subcategory_id } : {}),
+                  month: editing.month,
+                  amount_minor: Math.round(Number(amount) * 100),
+                  currency_code: currency
+                });
+                return;
+              }
+              const categoryMatch = /^c:(\d+)$/.exec(scope);
+              const subcategoryMatch = /^s:(\d+)$/.exec(scope);
+              const subcategoryID = subcategoryMatch ? Number(subcategoryMatch[1]) : undefined;
+              const category = categoryMatch
+                ? categories.data?.find((item) => item.id === Number(categoryMatch[1]))
+                : categories.data?.find((item) => activeSubcategories(item).some((subcategory) => subcategory.id === subcategoryID));
+              if (!category) return;
+              upsertBudget.mutate({
+                category_id: category.id,
+                ...(subcategoryID ? { subcategory_id: subcategoryID } : {}),
+                month,
+                amount_minor: Math.round(Number(amount) * 100),
+                currency_code: currency
+              });
+            }}
+          >
+            <Plus className="h-5 w-5" />
+            {upsertBudget.isPending ? "Saving" : editing ? "Save changes" : "Save budget"}
+          </Button>
+          {editing && (
+            <Button variant="secondary" type="button" onClick={cancelEdit}>
+              <X className="h-5 w-5" />
+              Cancel
+            </Button>
+          )}
+        </div>
         {upsertBudget.error && <p className="rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{upsertBudget.error.message}</p>}
       </section>
 
@@ -257,14 +300,25 @@ export function Budgets() {
                         {over ? " · over budget" : ` · ${formatMoney(remainingAmount, budget.currency_code)} left`}
                       </p>
                     </div>
-                    <button
-                      className="grid h-10 w-10 place-items-center rounded-xl text-coral transition hover:bg-coral/10"
-                      aria-label="Delete budget"
-                      onClick={() => removeBudget.mutate(budget.id)}
-                      disabled={removeBudget.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        className="grid h-10 w-10 place-items-center rounded-xl text-ink transition hover:bg-stone-100 dark:hover:bg-stone-800"
+                        aria-label="Edit budget"
+                        type="button"
+                        onClick={() => startEdit(budget)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        className="grid h-10 w-10 place-items-center rounded-xl text-coral transition hover:bg-coral/10"
+                        aria-label="Delete budget"
+                        type="button"
+                        onClick={() => removeBudget.mutate(budget.id)}
+                        disabled={removeBudget.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <BudgetProgress spent={budget.spent_minor} budget={budget.amount_minor} />
                 </article>

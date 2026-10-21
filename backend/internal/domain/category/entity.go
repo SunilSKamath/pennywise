@@ -8,8 +8,9 @@ type Subcategory struct {
 }
 
 type Category struct {
-	ID            uint64        `json:"id"`
-	Name          string        `json:"name"`
-	Emoji         string        `json:"emoji"`
-	Subcategories []Subcategory `json:"subcategories"`
+	ID                  uint64        `json:"id"`
+	Name                string        `json:"name"`
+	Emoji               string        `json:"emoji"`
+	YearlyBudgetEnabled bool          `json:"yearly_budget_enabled"`
+	Subcategories       []Subcategory `json:"subcategories"`
 }

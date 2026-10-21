@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { CirclePlus, LayoutDashboard, List, Menu, Target, X } from "lucide-react";
+import { CirclePlus, CalendarRange, LayoutDashboard, List, Menu, Target, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
@@ -11,7 +11,8 @@ import { cn } from "../lib/utils";
 const navItems = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/expenses", label: "Expenses", icon: List },
-  { to: "/budgets", label: "Budgets", icon: Target }
+  { to: "/budgets", label: "Budgets", icon: Target },
+  { to: "/yearly-budgets", label: "Yearly budgets", icon: CalendarRange }
 ];
 
 type AppShellProps = PropsWithChildren<{
@@ -84,7 +85,8 @@ export function AppShell({ children, user }: AppShellProps) {
                 await Promise.all([
                   queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
                   queryClient.invalidateQueries({ queryKey: ["expenses"] }),
-                  queryClient.invalidateQueries({ queryKey: ["budgets"] })
+                  queryClient.invalidateQueries({ queryKey: ["budgets"] }),
+                  queryClient.invalidateQueries({ queryKey: ["yearly-budgets"] })
                 ]);
               }}
             >
