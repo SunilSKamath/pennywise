@@ -2,12 +2,12 @@ import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "../lib/utils";
 
-export type SelectMenuOption = {
-  id: number;
+export type SelectMenuOption<T extends number | string = number> = {
+  id: T;
   name: string;
 };
 
-export function SelectMenu({
+export function SelectMenu<T extends number | string = number>({
   label,
   placeholder,
   options,
@@ -16,9 +16,9 @@ export function SelectMenu({
 }: {
   label: string;
   placeholder: string;
-  options: SelectMenuOption[];
-  value: number;
-  onChange: (id: number) => void;
+  options: SelectMenuOption<T>[];
+  value: T | "";
+  onChange: (id: T) => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);

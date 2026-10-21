@@ -3,6 +3,7 @@ import { PiggyBank, Plus, Target, Trash2, TrendingDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "../components/Button";
 import { MonthField } from "../components/DateField";
+import { SelectMenu } from "../components/SelectMenu";
 import { Skeleton } from "../components/Skeleton";
 import { api } from "../lib/api";
 import { cn, formatMoney, categoryLabel, monthLabel } from "../lib/utils";
@@ -161,22 +162,21 @@ export function Budgets() {
       <section className="panel space-y-4 p-4 sm:p-5">
         <h2 className="text-lg font-extrabold">Set category budget</h2>
         <div className="grid gap-3 sm:grid-cols-3">
-          <select className="control" value={categoryID} onChange={(event) => setCategoryID(event.target.value ? Number(event.target.value) : "")}>
-            <option value="">Select category</option>
-            {availableCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {categoryLabel(category)}
-              </option>
-            ))}
-          </select>
+          <SelectMenu
+            label="Category"
+            placeholder="Select category"
+            options={availableCategories.map((category) => ({ id: category.id, name: categoryLabel(category) }))}
+            value={categoryID}
+            onChange={setCategoryID}
+          />
           <input className="control" inputMode="decimal" placeholder="Monthly limit" value={amount} onChange={(event) => setAmount(event.target.value)} />
-          <select className="control" value={currency} onChange={(event) => setCurrency(event.target.value)}>
-            {currencies.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </select>
+          <SelectMenu
+            label="Currency"
+            placeholder="Currency"
+            options={currencies.map((code) => ({ id: code, name: code }))}
+            value={currency}
+            onChange={setCurrency}
+          />
         </div>
         <Button
           disabled={upsertBudget.isPending || !categoryID || !amount}
