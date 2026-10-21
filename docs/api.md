@@ -161,7 +161,7 @@ Soft-deletes the expense. Returns `204`.
 
 ### `GET /api/v1/tags`
 
-Returns up to 30 tags still used by an expense in the selected household. A tag is removed when no expense uses it.
+Returns up to 500 tags still used by an expense in the selected household. A tag is removed when no expense uses it.
 
 | Query | Meaning |
 | --- | --- |

@@ -166,30 +166,45 @@ function importTags(value: string) {
   return tags;
 }
 
-export function sampleExpensesCsv(categories: Category[], paymentSources: PaymentSource[], date: string) {
+function referenceRow(category: string, subcategory: string) {
+  return ["", "", category, subcategory, "", "", "", "", ""].map(csvField).join(",");
+}
+
+export function sampleExpensesCsv(categories: Category[], paymentSources: PaymentSource[], tags: string[], date: string) {
   const sampleDate = parseDate(date) || "2026-10-01";
-  const usable = categories.filter((category) => category.name.trim());
-  const first = usable[0];
-  const second = usable.find((category) => category.id !== first?.id) ?? first;
-  const payment = paymentSources.find((source) => source.name.trim()) ?? paymentSources[0];
-  const rowFor = (category: Category | undefined, merchant: string, amount: string) => {
-    const subcategory = (category?.subcategories ?? []).find((item) => !item.deleted);
-    return [
-      sampleDate,
-      merchant,
-      category?.name ?? "Food",
-      subcategory?.name ?? "",
-      payment?.name ?? "Cash",
-      amount,
-      payment?.currency_code || "INR",
-      "Example row. Replace before upload.",
-      ""
-    ].map(csvField);
-  };
-  const lines = [["Date", "Merchant", "Category", "Subcategory", "Payment source", "Amount", "Currency", "Notes", "Tags"].join(","), rowFor(first, "Sample store", "250.00").join(",")];
-  if (second && second.id !== first?.id) {
-    lines.push(rowFor(second, "Sample outing", "500.00").join(","));
-  }
+  const activeCategories = categories.filter((category) => category.name.trim());
+  const firstCategory = activeCategories[0];
+  const firstSubcategory = (firstCategory?.subcategories ?? []).find((item) => !item.deleted && item.name.trim());
+  const payment = paymentSources.find((source) => source.name.trim());
+  const tagNames = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  if (!tagNames.some((tag) => tag.toLowerCase() === csvImportTag)) tagNames.push(csvImportTag);
+  const lines = [["Date", "Merchant", "Category", "Subcategory", "Payment source", "Amount", "Currency", "Notes", "Tags"].join(",")];
+  lines.push(
+    csvField(
+      `# Example: ${sampleDate}, Sample store, ${firstCategory?.name ?? "Food"}, ${firstSubcategory?.name ?? ""}, ${payment?.name ?? "Cash"}, 250.00, ${payment?.currency_code || "INR"}, notes, ${tagNames.slice(0, 3).join("; ")}`
+    )
+  );
+  lines.push(csvField("# Fill Date, Merchant, Payment source, and Amount on a row below to add it. Rows without those are only a reference."));
+  lines.push(csvField(`# Tags: ${tagNames.join("; ")}`));
+  lines.push(
+    csvField(
+      `# Payment sources: ${
+        paymentSources
+          .filter((source) => source.name.trim())
+          .map((source) => `${source.name} (${source.currency_code})`)
+          .join("; ") || "none yet"
+      }`
+    )
+  );
+
+  activeCategories.forEach((category) => {
+    const subcategories = (category.subcategories ?? []).filter((item) => !item.deleted && item.name.trim());
+    if (subcategories.length === 0) {
+      lines.push(referenceRow(category.name, ""));
+      return;
+    }
+    subcategories.forEach((subcategory) => lines.push(referenceRow(category.name, subcategory.name)));
+  });
   return lines.join("\r\n");
 }
 
@@ -208,15 +223,19 @@ export function expensesFromCsv(text: string, categories: Category[], paymentSou
     return { payloads, errors: [`The CSV is missing ${missing.join(", ")}. Download the sample CSV for the expected columns.`] };
   }
 
-  const dataRows = table.slice(1);
-  if (dataRows.length === 0) {
+  const importRows = table.slice(1).filter((row) => {
+    const raw = (name: string) => (column(name) >= 0 ? (row.cells[column(name)] ?? "") : "").trim();
+    if ((row.cells[0] ?? "").trim().startsWith("#")) return false;
+    return Boolean(raw("date") || raw("merchant") || raw("amount"));
+  });
+  if (importRows.length === 0) {
     return { payloads, errors: ["The CSV has no expenses to add."] };
   }
-  if (dataRows.length > 500) {
+  if (importRows.length > 500) {
     return { payloads, errors: ["A CSV upload can add at most 500 expenses."] };
   }
 
-  dataRows.forEach((row) => {
+  importRows.forEach((row) => {
     const cell = (name: string) => plainText(column(name) >= 0 ? (row.cells[column(name)] ?? "") : "");
     const where = `Line ${row.line}`;
     const date = parseDate(cell("date"));

@@ -51,6 +51,7 @@ export function Expenses() {
   const expenses = useQuery({ queryKey: ["expenses", filters], queryFn: () => api.expenses(filters) });
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const paymentSources = useQuery({ queryKey: ["payment-sources"], queryFn: api.paymentSources });
+  const tagCatalog = useQuery({ queryKey: ["tags", "all"], queryFn: () => api.tags("") });
   const previous = previousMonth(month);
   const dashboard = useQuery({ queryKey: ["dashboard", month], queryFn: () => api.dashboard(month) });
   const previousDashboard = useQuery({ queryKey: ["dashboard", previous], queryFn: () => api.dashboard(previous) });
@@ -117,10 +118,17 @@ export function Expenses() {
   const uploadDisabled = importing || categories.isLoading || paymentSources.isLoading;
 
   useEffect(() => {
-    const url = csvObjectUrl(sampleExpensesCsv(categories.data ?? [], paymentSources.data ?? [], dateFrom || todayInputValue()));
+    const url = csvObjectUrl(
+      sampleExpensesCsv(
+        categories.data ?? [],
+        paymentSources.data ?? [],
+        (tagCatalog.data ?? []).map((tag) => tag.name),
+        dateFrom || todayInputValue()
+      )
+    );
     setSampleUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [categories.data, paymentSources.data, dateFrom]);
+  }, [categories.data, paymentSources.data, tagCatalog.data, dateFrom]);
 
   const uploadCsv = async (file: File) => {
     setImporting(true);
@@ -403,7 +411,9 @@ export function Expenses() {
           </a>
           </div>
         </div>
-        <p className="text-sm text-stone-500 dark:text-stone-400">Upload adds new expenses and tags each one csv. It does not change or delete existing expenses.</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
+          Sample CSV lists every category, subcategory, and tag. Fill Date, Merchant, Payment source, and Amount to add a row. Upload only adds expenses, and each one is tagged csv.
+        </p>
         {importNotice && (
           <p className={cn("whitespace-pre-line rounded-xl p-3 text-sm font-semibold", importNotice.tone === "ok" ? "bg-fern/10 text-fern" : "bg-coral/10 text-coral")}>
             {importNotice.text}

@@ -268,7 +268,7 @@ func (r *ExpenseRepository) ListTags(ctx context.Context, householdID uint64, se
 		query += " AND normalized_name LIKE ?"
 		args = append(args, "%"+normalizedTagName(search)+"%")
 	}
-	query += " ORDER BY name LIMIT 30"
+	query += " ORDER BY name LIMIT 500"
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
