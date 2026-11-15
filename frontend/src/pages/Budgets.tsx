@@ -192,7 +192,7 @@ export function Budgets() {
               const left = budget.amount_minor - budget.spent_minor;
               const percent = budget.amount_minor > 0 ? Math.min(100, (budget.spent_minor / budget.amount_minor) * 100) : 0;
               return (
-                <div key={budget.id}>
+                <div key={budget.id} className="list-row-deferred">
                   <div className="mb-1 flex justify-between gap-3 text-sm">
                     <span className="truncate font-semibold">{budgetTitle(budget, categories.data ?? [])}</span>
                     <span className={left >= 0 ? "font-bold text-fern" : "font-bold text-coral"}>
@@ -292,7 +292,7 @@ export function Budgets() {
               const remainingAmount = budget.amount_minor - budget.spent_minor;
               const over = remainingAmount < 0;
               return (
-                <article key={budget.id} className="panel space-y-3 p-4 sm:p-5">
+                <article key={budget.id} className="list-row-deferred panel space-y-3 p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-extrabold">{budgetTitle(budget, categories.data ?? [])}</p>

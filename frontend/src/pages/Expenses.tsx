@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarRange, CheckCircle2, Download, FileUp, FilterX, Search, TrendingDown, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/Button";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DateField, MonthField } from "../components/DateField";
 import { EmptyState } from "../components/EmptyState";
 import { ExpenseRow } from "../components/ExpenseRow";
@@ -36,6 +37,7 @@ export function Expenses() {
   const [sampleUrl, setSampleUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importNotice, setImportNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const filters: ExpenseFilters = {
@@ -108,9 +110,7 @@ export function Expenses() {
   };
 
   const handleDelete = (expense: Expense) => {
-    const label = expense.merchant || "this expense";
-    if (!window.confirm(`Delete ${label}?`)) return;
-    deleteExpense.mutate(expense.id);
+    setPendingDelete(expense);
   };
 
   const csvFilename = expenseCsvFilename(dateFrom, dateTo);
@@ -485,6 +485,21 @@ export function Expenses() {
           )}
         </div>
       </section>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Delete ${pendingDelete?.merchant || "this expense"}?`}
+        description="This removes the expense from your household. You can’t undo this."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        tone="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const expense = pendingDelete;
+          setPendingDelete(null);
+          if (expense) deleteExpense.mutate(expense.id);
+        }}
+      />
     </div>
   );
 }

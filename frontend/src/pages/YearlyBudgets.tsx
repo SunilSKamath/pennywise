@@ -191,7 +191,7 @@ export function YearlyBudgets() {
             const left = budget.amount_minor - budget.spent_minor;
             const over = left < 0;
             return (
-              <article key={budget.id} className="panel space-y-3 p-4 sm:p-5">
+              <article key={budget.id} className="panel list-row-deferred space-y-3 p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-extrabold">{category ? categoryLabel(category) : `Category ${budget.category_id}`}</p>

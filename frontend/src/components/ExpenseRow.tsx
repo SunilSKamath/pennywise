@@ -1,7 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Category, Expense, PaymentSource } from "../lib/api";
-import { categoryEmoji, formatDate, formatMoney } from "../lib/utils";
+import { categoryEmoji, cn, formatDate, formatMoney } from "../lib/utils";
 
 export function ExpenseRow({
   expense,
@@ -22,7 +22,7 @@ export function ExpenseRow({
   const paymentSource = paymentSources.find((item) => item.id === expense.payment_source_id)?.name ?? "Payment";
 
   return (
-    <div className="flex min-w-0 items-start gap-3 overflow-hidden border-b border-stone-100 px-1 py-4 last:border-0 dark:border-stone-800">
+    <div className={cn("list-row-deferred flex min-w-0 items-start gap-3 overflow-hidden border-b border-stone-100 px-1 py-4 last:border-0 dark:border-stone-800")}>
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-oat text-xl dark:bg-stone-800" aria-hidden="true">
         {emoji}
       </div>

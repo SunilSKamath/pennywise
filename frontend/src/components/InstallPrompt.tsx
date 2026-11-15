@@ -35,7 +35,7 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 rounded-2xl border border-stone-200 bg-white p-3 shadow-soft md:left-auto md:right-6 md:w-80 dark:border-stone-800 dark:bg-stone-900">
+    <div className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 rounded-2xl border border-stone-200 bg-white p-3 shadow-soft md:left-auto md:right-6 md:w-80 dark:border-stone-800 dark:bg-stone-900">
       <div className="flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-fern text-white">
           <Download className="h-5 w-5" />

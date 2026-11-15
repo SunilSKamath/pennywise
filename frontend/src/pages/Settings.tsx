@@ -101,7 +101,7 @@ export function Settings({ user }: { user: User }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             {user.picture_url ? (
-              <img className="h-14 w-14 rounded-2xl object-cover" src={user.picture_url} alt="" />
+              <img className="h-14 w-14 rounded-2xl object-cover" src={user.picture_url} alt="" loading="lazy" decoding="async" />
             ) : (
               <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-fern text-xl font-extrabold text-white">
                 {(user.name || user.email || "U").slice(0, 1).toUpperCase()}
@@ -209,13 +209,15 @@ export function Settings({ user }: { user: User }) {
 
       <section className="panel p-4 sm:p-5">
         <h2 className="text-lg font-extrabold">Theme</h2>
-        <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-oat p-1 dark:bg-stone-800">
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-oat p-1 dark:bg-stone-800" role="radiogroup" aria-label="Theme">
           {(["system", "light", "dark"] as const).map((option) => (
             <button
               key={option}
-              className={`h-11 rounded-xl text-sm font-bold capitalize transition ${theme === option ? "bg-white text-ink shadow-soft dark:bg-stone-950 dark:text-stone-50" : "text-stone-500"}`}
+              className={`min-h-11 rounded-xl text-sm font-bold capitalize transition ${theme === option ? "bg-white text-ink shadow-soft dark:bg-stone-950 dark:text-stone-50" : "text-stone-500"}`}
               onClick={() => setTheme(option)}
               type="button"
+              role="radio"
+              aria-checked={theme === option}
             >
               {option}
             </button>

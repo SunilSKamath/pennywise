@@ -186,7 +186,7 @@ function UserAccessRow({
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px_140px_120px] lg:items-center">
       <div className="flex min-w-0 items-center gap-3">
         {user.picture_url ? (
-          <img className="h-11 w-11 rounded-2xl object-cover" src={user.picture_url} alt="" />
+          <img className="h-11 w-11 rounded-2xl object-cover" src={user.picture_url} alt="" loading="lazy" decoding="async" />
         ) : (
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-fern text-sm font-extrabold text-white">{initials}</div>
         )}
