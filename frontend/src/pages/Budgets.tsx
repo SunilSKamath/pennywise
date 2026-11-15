@@ -143,19 +143,20 @@ export function Budgets() {
         <div>
           <p className="text-sm font-semibold text-fern">Limits</p>
           <h1 className="page-title">Budgets</h1>
+          <p className="mt-1 max-w-xl text-sm text-stone-500 dark:text-stone-400">A monthly limit stays in place until you change or delete it. The month control only changes which month’s spending you are looking at.</p>
         </div>
         <MonthField className="h-11 w-[9.5rem] text-sm" value={month} onChange={setMonth} />
       </header>
 
       <section className="panel overflow-hidden">
         <div className="bg-fern p-6 text-white">
-          <p className="text-sm font-medium text-white/75">{monthLabel(month)} budget</p>
+          <p className="text-sm font-medium text-white/75">Monthly limits</p>
           {budgets.isLoading ? (
             <Skeleton className="mt-3 h-10 w-44 bg-white/20" />
           ) : (
             <>
               <p className="mt-2 text-4xl font-extrabold">{formatMoney(totalBudget, displayCurrency)}</p>
-              <p className="mt-1 text-sm text-white/75">{formatMoney(totalSpent, displayCurrency)} spent so far</p>
+              <p className="mt-1 text-sm text-white/75">{formatMoney(totalSpent, displayCurrency)} spent in {monthLabel(month)}</p>
             </>
           )}
         </div>
@@ -283,7 +284,7 @@ export function Budgets() {
           </div>
         ) : (budgets.data ?? []).length === 0 ? (
           <div className="panel p-6 text-center">
-            <p className="text-sm text-stone-500 dark:text-stone-400">Set a monthly limit for a category, or for one of its subcategories.</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Set a monthly limit once. It applies every month until you change or delete it.</p>
           </div>
         ) : (
           <div className="space-y-3">

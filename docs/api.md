@@ -296,15 +296,15 @@ Creates a payment source. Returns `201`.
 }
 ```
 
-`spent_minor` is present on list responses. `month` is `YYYY-MM`. `subcategory_id` is `null` for a category budget. A subcategory budget includes `subcategory_id` and `subcategory_name`, and `spent_minor` counts only that subcategory.
+`spent_minor` is present on list responses. `month` is the month you are viewing, and `spent_minor` counts only that month. The saved amount is a standing monthly limit: it applies to every month until you change or delete it. `subcategory_id` is `null` for a category budget. A subcategory budget includes `subcategory_id` and `subcategory_name`, and `spent_minor` counts only that subcategory.
 
 ### `GET /api/v1/budgets?month=YYYY-MM`
 
-Returns budgets for the selected household and month, including `spent_minor`.
+Returns the household's standing monthly budgets. `month` chooses which month's spending is returned in `spent_minor`. It defaults to the current month.
 
 ### `PUT /api/v1/budgets`
 
-Creates or replaces the budget for that household, category or subcategory, and month.
+Creates or replaces the standing monthly budget for that household and category or subcategory. Saving again changes that same limit. It does not create a separate budget for the month in the body.
 
 ```json
 {
@@ -316,7 +316,7 @@ Creates or replaces the budget for that household, category or subcategory, and 
 }
 ```
 
-Omit `subcategory_id`, or send `null`, to budget the whole category. When it is set, it must be an active subcategory of `category_id`. `amount_minor` must be greater than zero. `currency_code` must be three letters. A category budget and subcategory budgets for the same category can both exist.
+`month` must be `YYYY-MM` and is accepted so existing clients keep working. Omit `subcategory_id`, or send `null`, to budget the whole category. When it is set, it must be an active subcategory of `category_id`. `amount_minor` must be greater than zero. `currency_code` must be three letters. A category budget and subcategory budgets for the same category can both exist.
 
 ### `DELETE /api/v1/budgets/:id`
 

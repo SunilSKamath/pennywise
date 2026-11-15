@@ -76,7 +76,7 @@ func (s *Service) ListWithProgress(ctx context.Context, householdID uint64, mont
 		return nil, errors.New("month must use YYYY-MM")
 	}
 
-	budgets, err := s.budgets.ListByMonth(ctx, householdID, month)
+	budgets, err := s.budgets.List(ctx, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +99,7 @@ func (s *Service) ListWithProgress(ctx context.Context, householdID uint64, mont
 
 	result := make([]domain.WithProgress, 0, len(budgets))
 	for _, budget := range budgets {
+		budget.Month = month
 		spent := spentByCategoryID[budget.CategoryID]
 		if budget.SubcategoryID != nil {
 			spent = spentBySubcategoryID[*budget.SubcategoryID]

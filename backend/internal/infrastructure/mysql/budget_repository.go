@@ -17,7 +17,7 @@ func NewBudgetRepository(db *sql.DB) *BudgetRepository {
 
 const budgetColumns = `
 	b.id, b.household_id, b.category_id, b.subcategory_id, COALESCE(sc.name, ''),
-	b.month, b.amount_minor, b.currency_code, b.created_at, b.updated_at
+	b.amount_minor, b.currency_code, b.created_at, b.updated_at
 `
 
 const budgetFrom = `
@@ -31,14 +31,14 @@ func (r *BudgetRepository) Upsert(ctx context.Context, budget *domain.Budget) er
 		subcategoryID = *budget.SubcategoryID
 	}
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO budgets (household_id, category_id, subcategory_id, month, amount_minor, currency_code)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO budgets (household_id, category_id, subcategory_id, amount_minor, currency_code)
+		VALUES (?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			amount_minor = VALUES(amount_minor),
 			currency_code = VALUES(currency_code),
 			deleted_at = NULL,
 			updated_at = CURRENT_TIMESTAMP
-	`, budget.HouseholdID, budget.CategoryID, subcategoryID, budget.Month, budget.AmountMinor, budget.CurrencyCode)
+	`, budget.HouseholdID, budget.CategoryID, subcategoryID, budget.AmountMinor, budget.CurrencyCode)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (r *BudgetRepository) Upsert(ctx context.Context, budget *domain.Budget) er
 		}
 	}
 	if budget.ID == 0 {
-		existing, err := r.getByScope(ctx, budget.HouseholdID, budget.CategoryID, budget.SubcategoryID, budget.Month)
+		existing, err := r.getByScope(ctx, budget.HouseholdID, budget.CategoryID, budget.SubcategoryID)
 		if err != nil {
 			return err
 		}
@@ -64,16 +64,16 @@ func (r *BudgetRepository) Upsert(ctx context.Context, budget *domain.Budget) er
 	return nil
 }
 
-func (r *BudgetRepository) getByScope(ctx context.Context, householdID, categoryID uint64, subcategoryID *uint64, month string) (*domain.Budget, error) {
+func (r *BudgetRepository) getByScope(ctx context.Context, householdID, categoryID uint64, subcategoryID *uint64) (*domain.Budget, error) {
 	var scope any
 	if subcategoryID != nil {
 		scope = *subcategoryID
 	}
 	row := r.db.QueryRowContext(ctx, `
 		SELECT `+budgetColumns+budgetFrom+`
-		WHERE b.household_id = ? AND b.category_id = ? AND b.month = ? AND b.deleted_at IS NULL
+		WHERE b.household_id = ? AND b.category_id = ? AND b.deleted_at IS NULL
 			AND b.subcategory_id <=> ?
-	`, householdID, categoryID, month, scope)
+	`, householdID, categoryID, scope)
 	return scanBudget(row)
 }
 
@@ -93,12 +93,12 @@ func (r *BudgetRepository) GetByID(ctx context.Context, id uint64, householdID u
 	return scanBudget(row)
 }
 
-func (r *BudgetRepository) ListByMonth(ctx context.Context, householdID uint64, month string) ([]domain.Budget, error) {
+func (r *BudgetRepository) List(ctx context.Context, householdID uint64) ([]domain.Budget, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT `+budgetColumns+budgetFrom+`
-		WHERE b.household_id = ? AND b.month = ? AND b.deleted_at IS NULL
+		WHERE b.household_id = ? AND b.deleted_at IS NULL
 		ORDER BY b.category_id, b.subcategory_id
-	`, householdID, month)
+	`, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func scanBudget(row budgetScanner) (*domain.Budget, error) {
 	var subcategoryID sql.NullInt64
 	err := row.Scan(
 		&budget.ID, &budget.HouseholdID, &budget.CategoryID, &subcategoryID, &budget.SubcategoryName,
-		&budget.Month, &budget.AmountMinor, &budget.CurrencyCode, &budget.CreatedAt, &budget.UpdatedAt,
+		&budget.AmountMinor, &budget.CurrencyCode, &budget.CreatedAt, &budget.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err

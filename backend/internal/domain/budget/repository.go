@@ -6,7 +6,7 @@ type Repository interface {
 	Upsert(ctx context.Context, budget *Budget) error
 	Delete(ctx context.Context, id uint64, householdID uint64) error
 	GetByID(ctx context.Context, id uint64, householdID uint64) (*Budget, error)
-	ListByMonth(ctx context.Context, householdID uint64, month string) ([]Budget, error)
+	List(ctx context.Context, householdID uint64) ([]Budget, error)
 	UpsertYearly(ctx context.Context, budget *YearlyBudget) error
 	DeleteYearly(ctx context.Context, id uint64, householdID uint64) error
 	ListYearly(ctx context.Context, householdID uint64, year string) ([]YearlyBudget, error)
