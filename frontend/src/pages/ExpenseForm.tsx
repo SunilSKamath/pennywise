@@ -11,6 +11,7 @@ import { DateField } from "../components/DateField";
 import { SelectMenu } from "../components/SelectMenu";
 import { TagInput } from "../components/TagInput";
 import { api, type Expense } from "../lib/api";
+import { usePreferences } from "../lib/store";
 import { categoryLabel, todayInputValue } from "../lib/utils";
 
 const expenseSchema = z.object({
@@ -31,8 +32,9 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
   const queryClient = useQueryClient();
   const isEditing = Boolean(expense);
   const [tags, setTags] = useState<string[]>([]);
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const paymentSources = useQuery({ queryKey: ["payment-sources"], queryFn: api.paymentSources });
+  const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
+  const categories = useQuery({ queryKey: ["categories", selectedHouseholdID], queryFn: api.categories });
+  const paymentSources = useQuery({ queryKey: ["payment-sources", selectedHouseholdID], queryFn: api.paymentSources });
 
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),

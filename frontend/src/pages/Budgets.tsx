@@ -6,6 +6,7 @@ import { MonthField } from "../components/DateField";
 import { SelectMenu } from "../components/SelectMenu";
 import { Skeleton } from "../components/Skeleton";
 import { api, type Budget, type Category } from "../lib/api";
+import { usePreferences } from "../lib/store";
 import { cn, formatMoney, categoryLabel, monthLabel } from "../lib/utils";
 
 const currencies = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
@@ -72,9 +73,10 @@ export function Budgets() {
   const [currency, setCurrency] = useState("INR");
   const [editing, setEditing] = useState<Budget | null>(null);
 
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const budgets = useQuery({ queryKey: ["budgets", month], queryFn: () => api.budgets(month) });
-  const dashboard = useQuery({ queryKey: ["dashboard", month], queryFn: () => api.dashboard(month) });
+  const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
+  const categories = useQuery({ queryKey: ["categories", selectedHouseholdID], queryFn: api.categories });
+  const budgets = useQuery({ queryKey: ["budgets", selectedHouseholdID, month], queryFn: () => api.budgets(month) });
+  const dashboard = useQuery({ queryKey: ["dashboard", selectedHouseholdID, month], queryFn: () => api.dashboard(month) });
 
   const scopeOptions = useMemo(() => {
     const used = new Set((budgets.data ?? []).map((budget) => `${budget.category_id}:${budget.subcategory_id ?? ""}`));

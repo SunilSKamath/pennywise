@@ -93,7 +93,23 @@ func (r *UserRepository) ListByHousehold(ctx context.Context, householdID uint64
 		return nil, err
 	}
 	defer rows.Close()
+	return r.scanUsers(ctx, rows)
+}
 
+func (r *UserRepository) ListAll(ctx context.Context) ([]domain.User, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, household_id, google_id, email, name, picture_url, role, status
+		FROM users
+		ORDER BY status DESC, name, email
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return r.scanUsers(ctx, rows)
+}
+
+func (r *UserRepository) scanUsers(ctx context.Context, rows *sql.Rows) ([]domain.User, error) {
 	users := []domain.User{}
 	for rows.Next() {
 		var user domain.User
@@ -114,7 +130,7 @@ func (r *UserRepository) ListByHousehold(ctx context.Context, householdID uint64
 	return users, nil
 }
 
-func (r *UserRepository) UpdateAccess(ctx context.Context, id uint64, householdID uint64, role domain.Role, status domain.Status) (*domain.User, error) {
+func (r *UserRepository) UpdateAccess(ctx context.Context, id uint64, role domain.Role, status domain.Status) (*domain.User, error) {
 	if role == domain.RoleAdmin {
 		return nil, errors.New("admin role is reserved for the configured admin email")
 	}
@@ -126,19 +142,19 @@ func (r *UserRepository) UpdateAccess(ctx context.Context, id uint64, householdI
 	}
 	existing, err := r.GetByID(ctx, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("user not found")
+		}
 		return nil, err
 	}
 	if r.isAdminEmail(existing.Email) {
 		return nil, errors.New("the admin account cannot be changed")
 	}
-	if existing.HouseholdID != householdID {
-		return nil, sql.ErrNoRows
-	}
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE users
 		SET status = ?
-		WHERE id = ? AND household_id = ?
-	`, status, id, householdID)
+		WHERE id = ?
+	`, status, id)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +163,7 @@ func (r *UserRepository) UpdateAccess(ctx context.Context, id uint64, householdI
 		return nil, err
 	}
 	if affected == 0 {
-		return nil, sql.ErrNoRows
+		return nil, errors.New("user not found")
 	}
 	return r.GetByID(ctx, id)
 }

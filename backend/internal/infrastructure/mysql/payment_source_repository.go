@@ -17,9 +17,9 @@ func NewPaymentSourceRepository(db *sql.DB) *PaymentSourceRepository {
 
 func (r *PaymentSourceRepository) Create(ctx context.Context, paymentSource *domain.PaymentSource) error {
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO payment_sources (name, type, currency_code)
-		VALUES (?, ?, ?)
-	`, paymentSource.Name, paymentSource.Type, paymentSource.CurrencyCode)
+		INSERT INTO payment_sources (household_id, name, type, currency_code)
+		VALUES (?, ?, ?, ?)
+	`, paymentSource.HouseholdID, paymentSource.Name, paymentSource.Type, paymentSource.CurrencyCode)
 	if err != nil {
 		return err
 	}
@@ -31,14 +31,15 @@ func (r *PaymentSourceRepository) Create(ctx context.Context, paymentSource *dom
 	return nil
 }
 
-func (r *PaymentSourceRepository) GetByID(ctx context.Context, id uint64) (*domain.PaymentSource, error) {
+func (r *PaymentSourceRepository) GetByID(ctx context.Context, id uint64, householdID uint64) (*domain.PaymentSource, error) {
 	var paymentSource domain.PaymentSource
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, type, currency_code
+		SELECT id, household_id, name, type, currency_code
 		FROM payment_sources
-		WHERE id = ? AND deleted_at IS NULL
-	`, id).Scan(
+		WHERE id = ? AND household_id = ? AND deleted_at IS NULL
+	`, id, householdID).Scan(
 		&paymentSource.ID,
+		&paymentSource.HouseholdID,
 		&paymentSource.Name,
 		&paymentSource.Type,
 		&paymentSource.CurrencyCode,
@@ -49,13 +50,13 @@ func (r *PaymentSourceRepository) GetByID(ctx context.Context, id uint64) (*doma
 	return &paymentSource, nil
 }
 
-func (r *PaymentSourceRepository) List(ctx context.Context) ([]domain.PaymentSource, error) {
+func (r *PaymentSourceRepository) List(ctx context.Context, householdID uint64) ([]domain.PaymentSource, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, type, currency_code
+		SELECT id, household_id, name, type, currency_code
 		FROM payment_sources
-		WHERE deleted_at IS NULL
+		WHERE household_id = ? AND deleted_at IS NULL
 		ORDER BY name
-	`)
+	`, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +67,7 @@ func (r *PaymentSourceRepository) List(ctx context.Context) ([]domain.PaymentSou
 		var paymentSource domain.PaymentSource
 		if err := rows.Scan(
 			&paymentSource.ID,
+			&paymentSource.HouseholdID,
 			&paymentSource.Name,
 			&paymentSource.Type,
 			&paymentSource.CurrencyCode,

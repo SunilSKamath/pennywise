@@ -18,7 +18,10 @@ func NewCategoryRepository(db *sql.DB) *CategoryRepository {
 }
 
 func (r *CategoryRepository) Create(ctx context.Context, category *domain.Category) error {
-	result, err := r.db.ExecContext(ctx, `INSERT INTO categories (name, emoji) VALUES (?, ?)`, category.Name, category.Emoji)
+	result, err := r.db.ExecContext(ctx, `
+		INSERT INTO categories (household_id, name, emoji)
+		VALUES (?, ?, ?)
+	`, category.HouseholdID, category.Name, category.Emoji)
 	if err != nil {
 		return err
 	}
@@ -33,10 +36,11 @@ func (r *CategoryRepository) Create(ctx context.Context, category *domain.Catego
 	return nil
 }
 
-func (r *CategoryRepository) UpdateEmoji(ctx context.Context, id uint64, emoji string) error {
+func (r *CategoryRepository) UpdateEmoji(ctx context.Context, id uint64, householdID uint64, emoji string) error {
 	result, err := r.db.ExecContext(ctx, `
-		UPDATE categories SET emoji = ? WHERE id = ? AND deleted_at IS NULL
-	`, emoji, id)
+		UPDATE categories SET emoji = ?
+		WHERE id = ? AND household_id = ? AND deleted_at IS NULL
+	`, emoji, id, householdID)
 	if err != nil {
 		return err
 	}
@@ -50,10 +54,11 @@ func (r *CategoryRepository) UpdateEmoji(ctx context.Context, id uint64, emoji s
 	return nil
 }
 
-func (r *CategoryRepository) SetYearlyBudgetEnabled(ctx context.Context, id uint64, enabled bool) error {
+func (r *CategoryRepository) SetYearlyBudgetEnabled(ctx context.Context, id uint64, householdID uint64, enabled bool) error {
 	result, err := r.db.ExecContext(ctx, `
-		UPDATE categories SET yearly_budget_enabled = ? WHERE id = ? AND deleted_at IS NULL
-	`, enabled, id)
+		UPDATE categories SET yearly_budget_enabled = ?
+		WHERE id = ? AND household_id = ? AND deleted_at IS NULL
+	`, enabled, id, householdID)
 	if err != nil {
 		return err
 	}
@@ -67,13 +72,13 @@ func (r *CategoryRepository) SetYearlyBudgetEnabled(ctx context.Context, id uint
 	return nil
 }
 
-func (r *CategoryRepository) GetByID(ctx context.Context, id uint64) (*domain.Category, error) {
+func (r *CategoryRepository) GetByID(ctx context.Context, id uint64, householdID uint64) (*domain.Category, error) {
 	var category domain.Category
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, emoji, yearly_budget_enabled
+		SELECT id, household_id, name, emoji, yearly_budget_enabled
 		FROM categories
-		WHERE id = ? AND deleted_at IS NULL
-	`, id).Scan(&category.ID, &category.Name, &category.Emoji, &category.YearlyBudgetEnabled)
+		WHERE id = ? AND household_id = ? AND deleted_at IS NULL
+	`, id, householdID).Scan(&category.ID, &category.HouseholdID, &category.Name, &category.Emoji, &category.YearlyBudgetEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -88,13 +93,13 @@ func (r *CategoryRepository) GetByID(ctx context.Context, id uint64) (*domain.Ca
 	return &category, nil
 }
 
-func (r *CategoryRepository) List(ctx context.Context) ([]domain.Category, error) {
+func (r *CategoryRepository) List(ctx context.Context, householdID uint64) ([]domain.Category, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, emoji, yearly_budget_enabled
+		SELECT id, household_id, name, emoji, yearly_budget_enabled
 		FROM categories
-		WHERE deleted_at IS NULL
+		WHERE household_id = ? AND deleted_at IS NULL
 		ORDER BY name
-	`)
+	`, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +109,7 @@ func (r *CategoryRepository) List(ctx context.Context) ([]domain.Category, error
 	ids := []uint64{}
 	for rows.Next() {
 		var category domain.Category
-		if err := rows.Scan(&category.ID, &category.Name, &category.Emoji, &category.YearlyBudgetEnabled); err != nil {
+		if err := rows.Scan(&category.ID, &category.HouseholdID, &category.Name, &category.Emoji, &category.YearlyBudgetEnabled); err != nil {
 			return nil, err
 		}
 		category.Subcategories = []domain.Subcategory{}

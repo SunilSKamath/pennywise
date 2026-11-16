@@ -232,7 +232,7 @@ export const api = {
     request<YearlyBudget>("/yearly-budgets", { method: "PUT", body: JSON.stringify(payload) }),
   deleteYearlyBudget: (id: number) => request<void>(`/yearly-budgets/${id}`, { method: "DELETE" }),
   setCategoryYearlyBudget: (id: number, enabled: boolean) =>
-    request<Category>(`/admin/categories/${id}/yearly-budget`, { method: "PATCH", body: JSON.stringify({ enabled }) }),
+    request<Category>(`/categories/${id}/yearly-budget`, { method: "PATCH", body: JSON.stringify({ enabled }) }),
   categories: () => request<Category[]>("/categories"),
   createCategory: (name: string, emoji = "📦") =>
     request<Category>("/categories", { method: "POST", body: JSON.stringify({ name, emoji }) }),

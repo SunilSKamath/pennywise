@@ -12,6 +12,7 @@ import { TagInput } from "../components/TagInput";
 import { api, type Expense, type ExpenseFilters } from "../lib/api";
 import { csvImportTag, expenseCsvFilename, expensesFromCsv, expensesToCsv, sampleExpensesCsv } from "../lib/csv";
 import { csvObjectUrl, prefersShareSheet, shareTextFile } from "../lib/download";
+import { usePreferences } from "../lib/store";
 import { categoryLabel, cn, currentMonth, formatMoney, monthBounds, monthLabel, todayInputValue } from "../lib/utils";
 
 function previousMonth(value: string) {
@@ -51,8 +52,9 @@ export function Expenses() {
     limit: 200
   };
   const expenses = useQuery({ queryKey: ["expenses", filters], queryFn: () => api.expenses(filters) });
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const paymentSources = useQuery({ queryKey: ["payment-sources"], queryFn: api.paymentSources });
+  const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
+  const categories = useQuery({ queryKey: ["categories", selectedHouseholdID], queryFn: api.categories });
+  const paymentSources = useQuery({ queryKey: ["payment-sources", selectedHouseholdID], queryFn: api.paymentSources });
   const tagCatalog = useQuery({ queryKey: ["tags", "all"], queryFn: () => api.tags("") });
   const previous = previousMonth(month);
   const dashboard = useQuery({ queryKey: ["dashboard", month], queryFn: () => api.dashboard(month) });

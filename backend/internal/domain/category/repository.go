@@ -4,10 +4,10 @@ import "context"
 
 type Repository interface {
 	Create(ctx context.Context, category *Category) error
-	UpdateEmoji(ctx context.Context, id uint64, emoji string) error
-	SetYearlyBudgetEnabled(ctx context.Context, id uint64, enabled bool) error
-	GetByID(ctx context.Context, id uint64) (*Category, error)
-	List(ctx context.Context) ([]Category, error)
+	UpdateEmoji(ctx context.Context, id uint64, householdID uint64, emoji string) error
+	SetYearlyBudgetEnabled(ctx context.Context, id uint64, householdID uint64, enabled bool) error
+	GetByID(ctx context.Context, id uint64, householdID uint64) (*Category, error)
+	List(ctx context.Context, householdID uint64) ([]Category, error)
 	GetSubcategory(ctx context.Context, id uint64) (*Subcategory, error)
 	CreateSubcategory(ctx context.Context, subcategory *Subcategory) error
 	DeleteSubcategory(ctx context.Context, categoryID uint64, subcategoryID uint64) error

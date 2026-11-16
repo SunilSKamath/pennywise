@@ -187,7 +187,7 @@ Returns up to 500 tags still used by an expense in the selected household. A tag
 
 ### `GET /api/v1/categories`
 
-Returns every category with its active subcategories. A removed subcategory is included, with `"deleted": true`, only while an expense still uses it. Categories are shared across households.
+Returns every category for the selected household with its active subcategories. A removed subcategory is included, with `"deleted": true`, only while an expense still uses it. Categories are household-scoped.
 
 ### `POST /api/v1/categories`
 
@@ -209,11 +209,11 @@ Updates the category emoji. Returns the category.
 
 An empty `emoji` is stored as `📦`. The value can be at most 8 characters.
 
-`yearly_budget_enabled` is set by an admin. When it is false, households cannot create or edit a yearly budget for that category. Saved yearly budgets stay visible.
+`yearly_budget_enabled` is set per household category. When it is false, that household cannot create or edit a yearly budget for that category. Saved yearly budgets stay visible.
 
-### `PATCH /api/v1/admin/categories/:id/yearly-budget`
+### `PATCH /api/v1/categories/:id/yearly-budget`
 
-Admin only. Turns yearly budgets on or off for a category.
+Turns yearly budgets on or off for a category in the selected household.
 
 ```json
 { "enabled": true }
@@ -247,11 +247,11 @@ Hides that subcategory from new expenses. Returns `204`. Expenses that already u
 
 `type` is one of `bank_account`, `credit_card`, `upi`, `cash`, `other`.
 
-Payment sources are shared across households.
+Payment sources are household-scoped.
 
 ### `GET /api/v1/payment-sources`
 
-Returns every payment source.
+Returns every payment source for the selected household.
 
 ### `POST /api/v1/payment-sources`
 
@@ -361,7 +361,7 @@ Creates or replaces the yearly budget. The category must have yearly budgets ena
 
 ### `DELETE /api/v1/yearly-budgets/:id`
 
-Deletes the yearly budget in the selected household. Returns `204`. A household can delete a saved yearly budget after an admin turns the category off.
+Deletes the yearly budget in the selected household. Returns `204`. A household can delete a saved yearly budget after yearly budgets are turned off for that category.
 
 ## Admin
 
@@ -369,11 +369,11 @@ These routes require an active admin. The admin is the `ADMIN_EMAIL` account onl
 
 ### `GET /api/v1/admin/users`
 
-Returns users whose `household_id` is the admin's current household. Each item is a user object.
+Returns every user. Each item is a user object with their household access list.
 
 ### `PATCH /api/v1/admin/users/:id`
 
-Approves or returns a non-admin user to pending.
+Approves or returns a non-admin user to pending. Works for any user id (not limited to the admin's primary household).
 
 ```json
 { "role": "user", "status": "active" }

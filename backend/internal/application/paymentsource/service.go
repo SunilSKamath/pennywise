@@ -17,6 +17,9 @@ func NewService(repo domain.Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.PaymentSource, error) {
+	if input.HouseholdID == 0 {
+		return nil, errors.New("household_id is required")
+	}
 	input.Name = strings.TrimSpace(input.Name)
 	input.CurrencyCode = strings.ToUpper(strings.TrimSpace(input.CurrencyCode))
 	if input.Name == "" {
@@ -30,6 +33,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Paymen
 	}
 
 	paymentSource := &domain.PaymentSource{
+		HouseholdID:  input.HouseholdID,
 		Name:         input.Name,
 		Type:         input.Type,
 		CurrencyCode: input.CurrencyCode,
@@ -40,11 +44,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Paymen
 	return paymentSource, nil
 }
 
-func (s *Service) List(ctx context.Context) ([]domain.PaymentSource, error) {
-	return s.repo.List(ctx)
+func (s *Service) List(ctx context.Context, householdID uint64) ([]domain.PaymentSource, error) {
+	return s.repo.List(ctx, householdID)
 }
 
 type CreateInput struct {
+	HouseholdID  uint64
 	Name         string
 	Type         domain.Type
 	CurrencyCode string

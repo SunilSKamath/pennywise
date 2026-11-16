@@ -38,10 +38,10 @@ func (s *Service) Upsert(ctx context.Context, input UpsertInput) (*domain.Budget
 	if input.AmountMinor <= 0 {
 		return nil, errors.New("budget amount must be greater than zero")
 	}
-	if _, err := s.categories.GetByID(ctx, input.CategoryID); err != nil {
+	if _, err := s.categories.GetByID(ctx, input.CategoryID, input.HouseholdID); err != nil {
 		return nil, errors.New("category not found")
 	}
-	subcategoryID, subcategoryName, err := s.normalizeSubcategory(ctx, input.CategoryID, input.SubcategoryID)
+	subcategoryID, subcategoryName, err := s.normalizeSubcategory(ctx, input.HouseholdID, input.CategoryID, input.SubcategoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +112,12 @@ func (s *Service) ListWithProgress(ctx context.Context, householdID uint64, mont
 	return result, nil
 }
 
-func (s *Service) normalizeSubcategory(ctx context.Context, categoryID uint64, subcategoryID *uint64) (*uint64, string, error) {
+func (s *Service) normalizeSubcategory(ctx context.Context, householdID, categoryID uint64, subcategoryID *uint64) (*uint64, string, error) {
 	if subcategoryID == nil || *subcategoryID == 0 {
 		return nil, "", nil
+	}
+	if _, err := s.categories.GetByID(ctx, categoryID, householdID); err != nil {
+		return nil, "", errors.New("category not found")
 	}
 	subcategory, err := s.categories.GetSubcategory(ctx, *subcategoryID)
 	if err != nil {
@@ -146,7 +149,7 @@ func (s *Service) UpsertYearly(ctx context.Context, input YearlyUpsertInput) (*d
 	if input.AmountMinor <= 0 {
 		return nil, errors.New("budget amount must be greater than zero")
 	}
-	category, err := s.categories.GetByID(ctx, input.CategoryID)
+	category, err := s.categories.GetByID(ctx, input.CategoryID, input.HouseholdID)
 	if err != nil {
 		return nil, errors.New("category not found")
 	}

@@ -36,10 +36,13 @@ func NewService(
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Expense, error) {
-	if err := s.validateReferences(ctx, input.CategoryID, input.PaymentSourceID); err != nil {
+	if input.HouseholdID == 0 {
+		return nil, errors.New("household_id is required")
+	}
+	if err := s.validateReferences(ctx, input.HouseholdID, input.CategoryID, input.PaymentSourceID); err != nil {
 		return nil, err
 	}
-	subcategoryID, subcategoryName, err := s.normalizeSubcategory(ctx, input.CategoryID, input.SubcategoryID, nil, true)
+	subcategoryID, subcategoryName, err := s.normalizeSubcategory(ctx, input.HouseholdID, input.CategoryID, input.SubcategoryID, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -51,9 +54,6 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Expens
 	}
 	if input.CreatedBy == 0 {
 		return nil, errors.New("created_by is required")
-	}
-	if input.HouseholdID == 0 {
-		return nil, errors.New("household_id is required")
 	}
 
 	from := strings.ToUpper(strings.TrimSpace(input.OriginalCurrencyCode))
@@ -106,10 +106,10 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (*domain.Expens
 	if input.PaymentSourceID != nil {
 		paymentSourceID = *input.PaymentSourceID
 	}
-	if err := s.validateReferences(ctx, categoryID, paymentSourceID); err != nil {
+	if err := s.validateReferences(ctx, input.HouseholdID, categoryID, paymentSourceID); err != nil {
 		return nil, err
 	}
-	subcategoryID, subcategoryName, err := s.resolveUpdatedSubcategory(ctx, categoryID, existing, input)
+	subcategoryID, subcategoryName, err := s.resolveUpdatedSubcategory(ctx, input.HouseholdID, categoryID, existing, input)
 	if err != nil {
 		return nil, err
 	}
@@ -179,25 +179,25 @@ func (s *Service) ListTags(ctx context.Context, householdID uint64, search strin
 	return s.expenses.ListTags(ctx, householdID, search)
 }
 
-func (s *Service) validateReferences(ctx context.Context, categoryID uint64, paymentSourceID uint64) error {
+func (s *Service) validateReferences(ctx context.Context, householdID, categoryID, paymentSourceID uint64) error {
 	if categoryID == 0 {
 		return errors.New("category_id is required")
 	}
 	if paymentSourceID == 0 {
 		return errors.New("payment_source_id is required")
 	}
-	if _, err := s.categories.GetByID(ctx, categoryID); err != nil {
+	if _, err := s.categories.GetByID(ctx, categoryID, householdID); err != nil {
 		return err
 	}
-	if _, err := s.paymentSources.GetByID(ctx, paymentSourceID); err != nil {
+	if _, err := s.paymentSources.GetByID(ctx, paymentSourceID, householdID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Service) resolveUpdatedSubcategory(ctx context.Context, categoryID uint64, existing *domain.Expense, input UpdateInput) (*uint64, string, error) {
+func (s *Service) resolveUpdatedSubcategory(ctx context.Context, householdID, categoryID uint64, existing *domain.Expense, input UpdateInput) (*uint64, string, error) {
 	if input.SubcategorySet {
-		return s.normalizeSubcategory(ctx, categoryID, input.SubcategoryID, existing.SubcategoryID, false)
+		return s.normalizeSubcategory(ctx, householdID, categoryID, input.SubcategoryID, existing.SubcategoryID, false)
 	}
 	current := existing.SubcategoryID
 	if current != nil {
@@ -206,11 +206,11 @@ func (s *Service) resolveUpdatedSubcategory(ctx context.Context, categoryID uint
 			current = nil
 		}
 	}
-	return s.normalizeSubcategory(ctx, categoryID, current, existing.SubcategoryID, false)
+	return s.normalizeSubcategory(ctx, householdID, categoryID, current, existing.SubcategoryID, false)
 }
 
-func (s *Service) normalizeSubcategory(ctx context.Context, categoryID uint64, subcategoryID *uint64, previousID *uint64, require bool) (*uint64, string, error) {
-	category, err := s.categories.GetByID(ctx, categoryID)
+func (s *Service) normalizeSubcategory(ctx context.Context, householdID, categoryID uint64, subcategoryID *uint64, previousID *uint64, require bool) (*uint64, string, error) {
+	category, err := s.categories.GetByID(ctx, categoryID, householdID)
 	if err != nil {
 		return nil, "", err
 	}

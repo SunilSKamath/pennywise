@@ -65,7 +65,10 @@ export function AppShell({ children, user }: AppShellProps) {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
       queryClient.invalidateQueries({ queryKey: ["expenses"] }),
       queryClient.invalidateQueries({ queryKey: ["budgets"] }),
-      queryClient.invalidateQueries({ queryKey: ["yearly-budgets"] })
+      queryClient.invalidateQueries({ queryKey: ["yearly-budgets"] }),
+      queryClient.invalidateQueries({ queryKey: ["categories"] }),
+      queryClient.invalidateQueries({ queryKey: ["payment-sources"] }),
+      queryClient.invalidateQueries({ queryKey: ["tags"] })
     ]);
   };
 

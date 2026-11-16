@@ -78,6 +78,7 @@ func NewRouter(services Services) *fiber.App {
 	protected.Get("/categories", listCategories(services.Categories))
 	protected.Post("/categories", createCategory(services.Categories))
 	protected.Patch("/categories/:id", updateCategoryEmoji(services.Categories))
+	protected.Patch("/categories/:id/yearly-budget", setCategoryYearlyBudget(services.Categories))
 	protected.Post("/categories/:id/subcategories", createSubcategory(services.Categories))
 	protected.Delete("/categories/:id/subcategories/:subcategoryId", deleteSubcategory(services.Categories))
 	protected.Get("/payment-sources", listPaymentSources(services.PaymentSources))
@@ -102,7 +103,6 @@ func NewRouter(services Services) *fiber.App {
 	admin.Patch("/users/:id/households", updateUserHouseholds(services.Users))
 	admin.Get("/households", listHouseholds(services.Users))
 	admin.Post("/households", createHousehold(services.Users))
-	admin.Patch("/categories/:id/yearly-budget", setCategoryYearlyBudget(services.Categories))
 
 	app.Use("/api", missingBackendRoute())
 	app.Use("/auth", missingBackendRoute())
@@ -346,7 +346,7 @@ func me() fiber.Handler {
 
 func listUsers(users userdomain.Repository) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		result, err := users.ListByHousehold(context.Background(), currentUser(c).HouseholdID)
+		result, err := users.ListAll(context.Background())
 		if err != nil {
 			return err
 		}
@@ -371,8 +371,11 @@ func updateUserAccess(users userdomain.Repository) fiber.Handler {
 		if id == currentUser(c).ID && req.Status != userdomain.StatusActive {
 			return fiber.NewError(fiber.StatusBadRequest, "you cannot deactivate your own account")
 		}
-		updated, err := users.UpdateAccess(context.Background(), id, currentUser(c).HouseholdID, req.Role, req.Status)
+		updated, err := users.UpdateAccess(context.Background(), id, req.Role, req.Status)
 		if err != nil {
+			if err.Error() == "user not found" {
+				return fiber.NewError(fiber.StatusNotFound, err.Error())
+			}
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		return c.JSON(updated)
@@ -442,7 +445,7 @@ func createHousehold(users userdomain.Repository) fiber.Handler {
 
 func listCategories(service *applicationcategory.Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		categories, err := service.List(context.Background())
+		categories, err := service.List(context.Background(), currentHouseholdID(c))
 		if err != nil {
 			return err
 		}
@@ -460,7 +463,7 @@ func createCategory(service *applicationcategory.Service) fiber.Handler {
 		if err := c.Bind().Body(&req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		category, err := service.Create(context.Background(), req.Name, req.Emoji)
+		category, err := service.Create(context.Background(), currentHouseholdID(c), req.Name, req.Emoji)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
@@ -481,7 +484,7 @@ func updateCategoryEmoji(service *applicationcategory.Service) fiber.Handler {
 		if err := json.Unmarshal(c.Body(), &req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		category, err := service.UpdateEmoji(context.Background(), id, req.Emoji)
+		category, err := service.UpdateEmoji(context.Background(), id, currentHouseholdID(c), req.Emoji)
 		if err != nil {
 			if err.Error() == "category not found" {
 				return fiber.NewError(fiber.StatusNotFound, err.Error())
@@ -505,7 +508,7 @@ func createSubcategory(service *applicationcategory.Service) fiber.Handler {
 		if err := c.Bind().Body(&req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		subcategory, err := service.CreateSubcategory(context.Background(), categoryID, req.Name)
+		subcategory, err := service.CreateSubcategory(context.Background(), currentHouseholdID(c), categoryID, req.Name)
 		if err != nil {
 			return subcategoryError(err)
 		}
@@ -523,7 +526,7 @@ func deleteSubcategory(service *applicationcategory.Service) fiber.Handler {
 		if err != nil || subcategoryID == 0 {
 			return fiber.NewError(fiber.StatusBadRequest, "id must be a positive integer")
 		}
-		if err := service.DeleteSubcategory(context.Background(), categoryID, subcategoryID); err != nil {
+		if err := service.DeleteSubcategory(context.Background(), currentHouseholdID(c), categoryID, subcategoryID); err != nil {
 			return subcategoryError(err)
 		}
 		return c.SendStatus(fiber.StatusNoContent)
@@ -539,7 +542,7 @@ func subcategoryError(err error) error {
 
 func listPaymentSources(service *applicationpaymentsource.Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		paymentSources, err := service.List(context.Background())
+		paymentSources, err := service.List(context.Background(), currentHouseholdID(c))
 		if err != nil {
 			return err
 		}
@@ -559,6 +562,7 @@ func createPaymentSource(service *applicationpaymentsource.Service) fiber.Handle
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		paymentSource, err := service.Create(context.Background(), applicationpaymentsource.CreateInput{
+			HouseholdID:  currentHouseholdID(c),
 			Name:         req.Name,
 			Type:         req.Type,
 			CurrencyCode: req.CurrencyCode,
@@ -862,7 +866,7 @@ func setCategoryYearlyBudget(service *applicationcategory.Service) fiber.Handler
 		if err := json.Unmarshal(c.Body(), &req); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		category, err := service.SetYearlyBudgetEnabled(context.Background(), id, req.Enabled)
+		category, err := service.SetYearlyBudgetEnabled(context.Background(), id, currentHouseholdID(c), req.Enabled)
 		if err != nil {
 			if err.Error() == "category not found" {
 				return fiber.NewError(fiber.StatusNotFound, err.Error())

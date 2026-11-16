@@ -5,6 +5,7 @@ import { Button } from "../components/Button";
 import { SelectMenu } from "../components/SelectMenu";
 import { Skeleton } from "../components/Skeleton";
 import { api, type YearlyBudget } from "../lib/api";
+import { usePreferences } from "../lib/store";
 import { categoryLabel, cn, formatMoney } from "../lib/utils";
 
 const currencies = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
@@ -37,8 +38,9 @@ export function YearlyBudgets() {
     setAmount("");
   }, [year]);
 
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const budgets = useQuery({ queryKey: ["yearly-budgets", year], queryFn: () => api.yearlyBudgets(year) });
+  const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
+  const categories = useQuery({ queryKey: ["categories", selectedHouseholdID], queryFn: api.categories });
+  const budgets = useQuery({ queryKey: ["yearly-budgets", selectedHouseholdID, year], queryFn: () => api.yearlyBudgets(year) });
   const enabled = (categories.data ?? []).filter((category) => category.yearly_budget_enabled);
   const available = useMemo(() => {
     const used = new Set((budgets.data ?? []).map((budget) => budget.category_id));
@@ -46,7 +48,7 @@ export function YearlyBudgets() {
   }, [categories.data, budgets.data]);
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["yearly-budgets", year] });
+    await queryClient.invalidateQueries({ queryKey: ["yearly-budgets"] });
   };
 
   const clearForm = () => {
@@ -133,7 +135,7 @@ export function YearlyBudgets() {
 
       {enabled.length === 0 ? (
         <section className="panel p-6 text-center">
-          <p className="text-sm text-stone-500 dark:text-stone-400">Yearly budgets appear here after an admin turns them on for a category.</p>
+          <p className="text-sm text-stone-500 dark:text-stone-400">Yearly budgets appear here after you turn them on for a category in Settings.</p>
         </section>
       ) : (
         <section className="panel space-y-4 p-4 sm:p-5">

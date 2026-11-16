@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "../components/Button";
 import { Skeleton } from "../components/Skeleton";
 import { api, type Household, type User } from "../lib/api";
-import { categoryLabel } from "../lib/utils";
 
 export function Admin({ currentUser }: { currentUser: User }) {
   const queryClient = useQueryClient();
@@ -12,7 +11,6 @@ export function Admin({ currentUser }: { currentUser: User }) {
   const [householdCurrency, setHouseholdCurrency] = useState("INR");
   const users = useQuery({ queryKey: ["admin-users"], queryFn: api.users });
   const households = useQuery({ queryKey: ["admin-households"], queryFn: api.households });
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const updateAccess = useMutation({
     mutationFn: ({ id, status }: { id: number; status: User["status"] }) =>
       api.updateUserAccess(id, { role: "user", status }),
@@ -40,15 +38,6 @@ export function Admin({ currentUser }: { currentUser: User }) {
         queryClient.invalidateQueries({ queryKey: ["admin-households"] }),
         queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
         queryClient.invalidateQueries({ queryKey: ["me"] })
-      ]);
-    }
-  });
-  const setYearlyBudget = useMutation({
-    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) => api.setCategoryYearlyBudget(id, enabled),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["categories"] }),
-        queryClient.invalidateQueries({ queryKey: ["yearly-budgets"] })
       ]);
     }
   });
@@ -99,37 +88,13 @@ export function Admin({ currentUser }: { currentUser: User }) {
       </section>
 
       <section className="panel p-4 sm:p-5">
-        <h2 className="text-lg font-extrabold">Yearly budget categories</h2>
-        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Turn a category on so households can set a calendar-year budget for it.</p>
-        <div className="mt-4 space-y-2">
-          {categories.isLoading ? (
-            <Skeleton className="h-12" />
-          ) : (
-            (categories.data ?? []).map((category) => (
-              <label key={category.id} className="flex items-center justify-between gap-3 rounded-xl bg-mist px-3 py-2 dark:bg-stone-800">
-                <span className="font-semibold">{categoryLabel(category)}</span>
-                <input
-                  type="checkbox"
-                  checked={category.yearly_budget_enabled}
-                  aria-label={`Allow yearly budget for ${category.name}`}
-                  disabled={setYearlyBudget.isPending}
-                  onChange={(event) => setYearlyBudget.mutate({ id: category.id, enabled: event.target.checked })}
-                />
-              </label>
-            ))
-          )}
-        </div>
-        {setYearlyBudget.error && <p className="mt-3 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{setYearlyBudget.error.message}</p>}
-      </section>
-
-      <section className="panel p-4 sm:p-5">
         <div className="mb-4 flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-sky text-fern">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
             <h2 className="text-lg font-extrabold">Users</h2>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Approve household access. Admin access stays with the configured account.</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Approve people and assign households. Admin access stays with the configured account.</p>
           </div>
         </div>
 
@@ -197,7 +162,7 @@ function UserAccessRow({
       </div>
 
       <span className="rounded-xl bg-white px-3 py-2 text-center text-sm font-bold text-ink dark:bg-stone-950 dark:text-stone-50">
-        {isAdmin ? "Admin" : "User"}
+        {isAdmin ? "Admin" : "Member"}
       </span>
 
       {isAdmin ? (

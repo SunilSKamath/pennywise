@@ -6,6 +6,7 @@ import { Button } from "../components/Button";
 import { SubcategoryManager } from "../components/SubcategoryManager";
 import { api, type Category, type PaymentSource, type User } from "../lib/api";
 import { usePreferences } from "../lib/store";
+import { categoryLabel } from "../lib/utils";
 
 const currencies = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
 
@@ -55,8 +56,12 @@ function CategoryEmojiEditor({ category }: { category: Category }) {
 
 export function Settings({ user }: { user: User }) {
   const queryClient = useQueryClient();
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const paymentSources = useQuery({ queryKey: ["payment-sources"], queryFn: api.paymentSources });
+  const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
+  const householdID = selectedHouseholdID && user.households.some((household) => household.id === selectedHouseholdID)
+    ? selectedHouseholdID
+    : user.household_id;
+  const categories = useQuery({ queryKey: ["categories", householdID], queryFn: api.categories });
+  const paymentSources = useQuery({ queryKey: ["payment-sources", householdID], queryFn: api.paymentSources });
   const [categoryName, setCategoryName] = useState("");
   const [categoryEmoji, setCategoryEmoji] = useState("📦");
   const [sourceName, setSourceName] = useState("");
@@ -79,6 +84,16 @@ export function Settings({ user }: { user: User }) {
     onSuccess: async () => {
       setSourceName("");
       await queryClient.invalidateQueries({ queryKey: ["payment-sources"] });
+    }
+  });
+
+  const setYearlyBudget = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) => api.setCategoryYearlyBudget(id, enabled),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["categories"] }),
+        queryClient.invalidateQueries({ queryKey: ["yearly-budgets"] })
+      ]);
     }
   });
 
@@ -205,6 +220,26 @@ export function Settings({ user }: { user: User }) {
         <div className="mt-4">
           <SubcategoryManager categories={categories.data ?? []} />
         </div>
+      </section>
+
+      <section className="panel p-4 sm:p-5">
+        <h2 className="text-lg font-extrabold">Yearly budget categories</h2>
+        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">Turn a category on for this household so you can set a calendar-year budget for it.</p>
+        <div className="mt-4 space-y-2">
+          {(categories.data ?? []).map((category) => (
+            <label key={category.id} className="flex items-center justify-between gap-3 rounded-xl bg-mist px-3 py-2 dark:bg-stone-800">
+              <span className="font-semibold">{categoryLabel(category)}</span>
+              <input
+                type="checkbox"
+                checked={category.yearly_budget_enabled}
+                aria-label={`Allow yearly budget for ${category.name}`}
+                disabled={setYearlyBudget.isPending}
+                onChange={(event) => setYearlyBudget.mutate({ id: category.id, enabled: event.target.checked })}
+              />
+            </label>
+          ))}
+        </div>
+        {setYearlyBudget.error && <p className="mt-3 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral">{setYearlyBudget.error.message}</p>}
       </section>
 
       <section className="panel p-4 sm:p-5">

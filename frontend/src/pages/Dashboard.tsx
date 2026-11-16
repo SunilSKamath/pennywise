@@ -7,6 +7,7 @@ import { ExpenseRow } from "../components/ExpenseRow";
 import { MonthField } from "../components/DateField";
 import { Skeleton } from "../components/Skeleton";
 import { api } from "../lib/api";
+import { usePreferences } from "../lib/store";
 import { cn, formatMoney, categoryLabel } from "../lib/utils";
 
 function currentMonth() {
@@ -56,12 +57,13 @@ export function Dashboard() {
   const [month, setMonth] = useState(currentMonth);
   const previousMonth = shiftMonth(month, -1);
 
-  const dashboard = useQuery({ queryKey: ["dashboard", month], queryFn: () => api.dashboard(month) });
-  const previousDashboard = useQuery({ queryKey: ["dashboard", previousMonth], queryFn: () => api.dashboard(previousMonth) });
-  const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
-  const paymentSources = useQuery({ queryKey: ["payment-sources"], queryFn: api.paymentSources });
-  const budgets = useQuery({ queryKey: ["budgets", month], queryFn: () => api.budgets(month), retry: false });
-  const expenses = useQuery({ queryKey: ["expenses", month], queryFn: () => api.expenses({ ...monthBounds(month), limit: 200 }) });
+  const selectedHouseholdID = usePreferences((state) => state.selectedHouseholdID);
+  const dashboard = useQuery({ queryKey: ["dashboard", selectedHouseholdID, month], queryFn: () => api.dashboard(month) });
+  const previousDashboard = useQuery({ queryKey: ["dashboard", selectedHouseholdID, previousMonth], queryFn: () => api.dashboard(previousMonth) });
+  const categories = useQuery({ queryKey: ["categories", selectedHouseholdID], queryFn: api.categories });
+  const paymentSources = useQuery({ queryKey: ["payment-sources", selectedHouseholdID], queryFn: api.paymentSources });
+  const budgets = useQuery({ queryKey: ["budgets", selectedHouseholdID, month], queryFn: () => api.budgets(month), retry: false });
+  const expenses = useQuery({ queryKey: ["expenses", selectedHouseholdID, month], queryFn: () => api.expenses({ ...monthBounds(month), limit: 200 }) });
 
   const currency = dashboard.data?.by_category[0]?.currency_code ?? "INR";
   const topCategory = dashboard.data?.by_category[0];

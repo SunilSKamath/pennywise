@@ -31,8 +31,8 @@ func ensureDevUser(ctx context.Context, db *sql.DB) error {
 
 func ensureCategories(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `
-		INSERT INTO categories (name)
-		SELECT name
+		INSERT INTO categories (household_id, name)
+		SELECT 1, name
 		FROM (
 			SELECT 'Food' AS name UNION ALL
 			SELECT 'Travel' UNION ALL
@@ -45,7 +45,7 @@ func ensureCategories(ctx context.Context, db *sql.DB) error {
 		WHERE NOT EXISTS (
 			SELECT 1
 			FROM categories c
-			WHERE c.name = defaults.name AND c.deleted_at IS NULL
+			WHERE c.household_id = 1 AND c.name = defaults.name AND c.deleted_at IS NULL
 		)
 	`)
 	return err
@@ -53,8 +53,8 @@ func ensureCategories(ctx context.Context, db *sql.DB) error {
 
 func ensurePaymentSources(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `
-		INSERT INTO payment_sources (name, type, currency_code)
-		SELECT name, type, currency_code
+		INSERT INTO payment_sources (household_id, name, type, currency_code)
+		SELECT 1, name, type, currency_code
 		FROM (
 			SELECT 'Cash' AS name, 'cash' AS type, 'INR' AS currency_code UNION ALL
 			SELECT 'Google Pay', 'upi', 'INR' UNION ALL
@@ -63,7 +63,7 @@ func ensurePaymentSources(ctx context.Context, db *sql.DB) error {
 		WHERE NOT EXISTS (
 			SELECT 1
 			FROM payment_sources ps
-			WHERE ps.name = defaults.name AND ps.deleted_at IS NULL
+			WHERE ps.household_id = 1 AND ps.name = defaults.name AND ps.deleted_at IS NULL
 		)
 	`)
 	return err
